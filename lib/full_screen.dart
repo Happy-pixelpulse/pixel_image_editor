@@ -187,10 +187,10 @@ class _FullScreenState extends State<FullScreen> {
                                       },
                                       child: Text(
                                         userEnteredText!,
-                                        style: TextStyle(
+                                        style:  const TextStyle(
                                           fontSize: 30,
                                           color: Colors.white,
-                                          backgroundColor: Colors.black.withOpacity(0.5),
+                                          backgroundColor: Colors.transparent,
                                         ),
                                       ),
                                     ),
@@ -348,14 +348,24 @@ class _FullScreenState extends State<FullScreen> {
             decoration: const InputDecoration(hintText: "Enter text"),
           ),
           actions: [
-            ElevatedButton(
-              onPressed: () {
+            GestureDetector(
+              onTap: () {
                 setState(() {
                   userEnteredText = _textEditingController.text;
                 });
-                Navigator.of(context).pop();
+                Navigator.pop(context);
               },
               child: const Text("Add"),
+            ),
+            const SizedBox(width: 15),
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(context);
+              },
+              child: const Text(
+                'Close',
+                style: TextStyle(fontSize: 16),
+              ),
             ),
           ],
         );
