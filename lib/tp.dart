@@ -1,21 +1,18 @@
 // import 'dart:io';
 // import 'dart:math' as math;
+// import 'dart:ui' as ui;
 //
 // import 'package:colorfilter_generator/colorfilter_generator.dart';
 // import 'package:colorfilter_generator/presets.dart';
-// import 'package:edit_image/data/layer.dart';
+// import 'package:edit_image/filter/options.dart';
 // import 'package:extended_image/extended_image.dart';
 // import 'package:flutter/foundation.dart';
 // import 'package:flutter/material.dart';
+// import 'package:flutter/rendering.dart';
 // import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 // import 'package:image/image.dart' as img;
-// //import 'package:screenshot/screenshot.dart';
+// import 'package:path_provider/path_provider.dart';
 // import 'package:share_plus/share_plus.dart';
-//
-// // import 'data/image_item.dart';
-// //import 'filter/options.dart' as o;
-//
-// List<Layer> layers = [], undoLayers = [], removedLayers = [];
 //
 // class FullScreen extends StatefulWidget {
 //   const FullScreen({
@@ -30,106 +27,107 @@
 // }
 //
 // class _FullScreenState extends State<FullScreen> {
-//   // List<ImageItem> images = [];
-//
 //   final _controller = GlobalKey<ExtendedImageEditorState>();
 //   double? currentRatio;
-//
 //   Uint8List? imageBytes;
+//   int _selectedIndex = 0;
+//   final GlobalKey _repaintBoundary = GlobalKey();
+//   bool _showfilterlist = false;
+//   bool _cropimage = false;
+//   bool _showBrushOptions = false;
+//   bool _showTextField = false;
+//   Color selectedTextColor = Colors.black;
+//   ColorFilterGenerator selectedFilter = PresetFilters.none;
+//   double rotationAngle = 0;
+//   late List<ColorFilterGenerator> filters;
+//   String? userEnteredText;
+//   Offset textPosition = const Offset(50, 50);
+//   final TextEditingController _textEditingController = TextEditingController();
+//   List<Offset?> points = [];
+//   double strokeWidth = 3.0;
+//   Color brushColor = Colors.white;
+//   BrushOption brushOption = const BrushOption();
+//
+//   final List<Color> textColors = [
+//     Colors.black,
+//     Colors.red,
+//     Colors.blue,
+//     Colors.green,
+//     Colors.yellow,
+//     Colors.purple,
+//     Colors.orange,
+//     Colors.pink,
+//     Colors.indigo,
+//     Colors.lightGreenAccent,
+//     const Color.fromRGBO(236, 153, 255, 1)
+//   ];
+//
+//   @override
+//   void initState() {
+//     filters = [PresetFilters.none, ...presetFiltersList.sublist(1)];
+//     loadBytes();
+//     WidgetsBinding.instance.addPostFrameCallback((_) {
+//       setState(() {});
+//     });
+//     super.initState();
+//   }
 //
 //   void loadBytes() async {
 //     imageBytes = await widget.image.readAsBytes();
 //   }
 //
 //   void _sharePressed() async {
-//     final result = await Share.shareXFiles([XFile(widget.image.path)],
-//         text: 'Great picture 😊');
-//     if (result.status == ShareResultStatus.success) {
-//       if (kDebugMode) {
-//         print('Thank you for sharing the picture!');
-//       }
-//     }
-//   }
-//
-//   Future<void> _saveImage(BuildContext context) async {
-//     String? message;
-//     final scaffoldMessenger = ScaffoldMessenger.of(context);
 //     try {
-//       final params = SaveFileDialogParams(sourceFilePath: widget.image.path);
-//       final finalPath = await FlutterFileDialog.saveFile(params: params);
+//       RenderRepaintBoundary boundary = _repaintBoundary.currentContext!
+//           .findRenderObject() as RenderRepaintBoundary;
+//       ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+//       ByteData? byteData =
+//       await image.toByteData(format: ui.ImageByteFormat.png);
+//       Uint8List pngBytes = byteData!.buffer.asUint8List();
 //
-//       if (finalPath != null) {
-//         message = 'Image saved to disk';
+//       final tempDir = await getTemporaryDirectory();
+//       final file = await File('${tempDir.path}/shared_image.png').create();
+//       await file.writeAsBytes(pngBytes);
+//
+//       final result =
+//       await Share.shareXFiles([XFile(file.path)], text: 'Great picture 😊');
+//       if (result.status == ShareResultStatus.success) {
+//         if (kDebugMode) {
+//           print('Thank you for sharing the picture!');
+//         }
 //       }
 //     } catch (e) {
-//       message = 'An error occurred while saving the image';
-//     }
-//
-//     if (message != null) {
-//       scaffoldMessenger.showSnackBar(SnackBar(content: Text(message)));
+//       ScaffoldMessenger.of(context)
+//           .showSnackBar(SnackBar(content: Text('Error: $e')));
 //     }
 //   }
 //
-//   // ScreenshotController screenshotController = ScreenshotController();
-//   int _selectedIndex = 0;
-//   bool _showfilterlist = false;
-//   bool _cropimage = false;
-//   ColorFilterGenerator selectedFilter = PresetFilters.none;
-//   double filterOpacity = 1;
-//   double rotationAngle = 0;
+//   Future<void> _captureAndSaveImage() async {
+//     try {
+//       RenderRepaintBoundary boundary = _repaintBoundary.currentContext!
+//           .findRenderObject() as RenderRepaintBoundary;
+//       ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+//       ByteData? byteData =
+//       await image.toByteData(format: ui.ImageByteFormat.png);
+//       Uint8List pngBytes = byteData!.buffer.asUint8List();
 //
-//   // Uint8List resizedImage = Uint8List.fromList([]);
-//   // List<CubicPath> undoList = [];
-//   Uint8List? filterAppliedImage;
-//   late List<ColorFilterGenerator> filters;
-//   double flipValue = 0;
-//   int rotateValue = 0;
+//       final params = SaveFileDialogParams(
+//         data: pngBytes,
+//         fileName: "pixel_image_editor_${DateTime.now()}.png",
+//       );
+//       final filePath = await FlutterFileDialog.saveFile(params: params);
 //
-//   // double x = 0;
-//   // double y = 0;
-//   // double z = 0;
-//   //
-//   // double lastScaleFactor = 1, scaleFactor = 1;
-//   // double widthRatio = 1, heightRatio = 1, pixelRatio = 1;
-//
-//   // Future<Uint8List?> getMergedImage([
-//   //   o.OutputFormat format = o.OutputFormat.png,
-//   // ]) async {
-//   //   Uint8List? image;
-//   //
-//   //   if (flipValue != 0 || rotateValue != 0 || layers.length > 1) {
-//   //     image = await screenshotController.capture(pixelRatio: pixelRatio);
-//   //   } else if (layers.length == 1) {
-//   //     if (layers.first is BackgroundLayerData) {
-//   //       image = (layers.first as BackgroundLayerData).image.bytes;
-//   //     } else if (layers.first is ImageLayerData) {
-//   //       image = (layers.first as ImageLayerData).image.bytes;
-//   //     }
-//   //   }
-//   //
-//   //   // conversion for non-png
-//   //   if (image != null && format == o.OutputFormat.jpeg) {
-//   //     var decodedImage = img.decodeImage(image);
-//   //
-//   //     if (decodedImage == null) {
-//   //       throw Exception('Unable to decode image for conversion.');
-//   //     }
-//   //
-//   //     return img.encodeJpg(decodedImage);
-//   //   }
-//   //
-//   //   return image;
-//   // }
-//
-//   @override
-//   void initState() {
-//     filters = [PresetFilters.none, ...presetFiltersList.sublist(1)];
-//     // images = widget.images.map((e) => ImageItem(e)).toList();
-//     loadBytes();
-//     WidgetsBinding.instance.addPostFrameCallback((_) {
-//       setState(() {});
-//     });
-//     super.initState();
+//       if (filePath != null) {
+//         ScaffoldMessenger.of(context)
+//             .showSnackBar(SnackBar(content: Text('Image saved to $filePath')));
+//       } else {
+//         ScaffoldMessenger.of(context).showSnackBar(
+//             const SnackBar(content: Text('Failed to save image')));
+//       }
+//     } catch (e) {
+//       ScaffoldMessenger.of(context)
+//           .showSnackBar(SnackBar(content: Text('Error: $e')));
+//     }
 //   }
 //
 //   @override
@@ -140,13 +138,18 @@
 //           BottomNavigationBarItem(
 //               icon: Icon(Icons.edit, color: Colors.black), label: 'Filter'),
 //           BottomNavigationBarItem(
-//               icon: Icon(Icons.crop, color: Colors.black), label: 'Croup'),
+//               icon: Icon(Icons.crop, color: Colors.black), label: 'Crop'),
 //           BottomNavigationBarItem(
 //               icon: Icon(Icons.rotate_left, color: Colors.black),
 //               label: 'Rotate Left'),
 //           BottomNavigationBarItem(
 //               icon: Icon(Icons.rotate_right, color: Colors.black),
 //               label: 'Rotate Right'),
+//           BottomNavigationBarItem(
+//               icon: Icon(Icons.text_fields, color: Colors.black),
+//               label: 'Text'),
+//           BottomNavigationBarItem(
+//               icon: Icon(Icons.edit, color: Colors.black), label: 'Brush'),
 //         ],
 //         currentIndex: _selectedIndex,
 //         backgroundColor: Colors.white,
@@ -154,13 +157,18 @@
 //         onTap: _onBottomNavigationBarTap,
 //       ),
 //       appBar: AppBar(
-//         title: const Text("Edit Image"),
+//         elevation: 0,
+//         title: const Text(
+//           "Edit Image",
+//           style: TextStyle(
+//             wordSpacing: 5,
+//             letterSpacing: 2,
+//           ),
+//         ),
 //         centerTitle: true,
 //         actions: [
 //           IconButton(
-//             onPressed: () {
-//               _saveImage(context);
-//             },
+//             onPressed: _captureAndSaveImage,
 //             icon: const Icon(Icons.download),
 //             iconSize: 24,
 //           ),
@@ -169,242 +177,298 @@
 //             icon: const Icon(Icons.share),
 //             iconSize: 24,
 //           ),
-//           IconButton(
-//             padding: const EdgeInsets.symmetric(horizontal: 8),
-//             icon: const Icon(Icons.check),
-//             onPressed: () {},
-//           ),
 //         ],
 //       ),
-//       backgroundColor: Colors.white,
-//       body: Column(
-//         children: [
-//           if (imageBytes != null)
-//             Expanded(
-//               child: Padding(
-//                 padding: const EdgeInsets.all(8.0),
-//                 child: Transform.rotate(
-//                   angle: rotationAngle,
-//                   child: ColorFiltered(
-//                     colorFilter: ColorFilter.matrix(selectedFilter.matrix),
-//                     child: Center(
-//                       child: ClipRRect(
-//                         borderRadius: BorderRadius.circular(10),
-//                         child: _cropimage ?  Flexible(
-//                           child: ExtendedImage.memory(
-//                             imageBytes!,
-//                             cacheRawData: true,
-//                             fit: BoxFit.contain,
-//                             extendedImageEditorKey: _controller,
-//                             mode: ExtendedImageMode.editor,
-//                             initEditorConfigHandler: (state) {
-//                               return EditorConfig(
-//                                 cropAspectRatio: currentRatio,
-//                               );
-//                             },
+//       body: GestureDetector(
+//         onTap: () {
+//           setState(() {
+//             _showfilterlist = false;
+//             _cropimage = false;
+//             _showTextField = false;
+//           });
+//         },
+//         onScaleStart: (details) {
+//           if (_showBrushOptions) {
+//             setState(() {
+//               points.add(details.localFocalPoint);
+//             });
+//           }
+//         },
+//         onScaleUpdate: (details) {
+//           if (_showBrushOptions) {
+//             setState(() {
+//               points.add(details.localFocalPoint);
+//             });
+//           } else if (userEnteredText != null) {
+//             setState(() {
+//               textPosition = Offset(
+//                 textPosition.dx + details.focalPointDelta.dx,
+//                 textPosition.dy + details.focalPointDelta.dy,
+//               );
+//             });
+//           }
+//         },
+//         onScaleEnd: (details) {
+//           if (_showBrushOptions) {
+//             setState(() {
+//               points.add(null);
+//             });
+//           }
+//         },
+//         child: Column(
+//           children: [
+//             if (imageBytes != null)
+//               Flexible(
+//                 flex: 1,
+//                 child: RepaintBoundary(
+//                   key: _repaintBoundary,
+//                   child: Padding(
+//                     padding: const EdgeInsets.all(8.0),
+//                     child: Transform.rotate(
+//                       angle: rotationAngle,
+//                       child: Align(
+//                         alignment: Alignment.bottomCenter,
+//                         child: ColorFiltered(
+//                           colorFilter:
+//                           ColorFilter.matrix(selectedFilter.matrix),
+//                           child: Center(
+//                             child: ClipRRect(
+//                               borderRadius: BorderRadius.circular(10),
+//                               child: Stack(
+//                                 alignment: Alignment.center,
+//                                 children: [
+//                                   _cropimage
+//                                       ? Flexible(
+//                                     child: ExtendedImage.memory(
+//                                       imageBytes!,
+//                                       cacheRawData: true,
+//                                       fit: BoxFit.contain,
+//                                       extendedImageEditorKey: _controller,
+//                                       mode: ExtendedImageMode.editor,
+//                                       initEditorConfigHandler: (state) {
+//                                         return EditorConfig(
+//                                             cropAspectRatio:
+//                                             currentRatio);
+//                                       },
+//                                     ),
+//                                   )
+//                                       :
+//                                   Image.memory(
+//                                     imageBytes!,
+//                                     fit: BoxFit.contain,
+//                                   ),
+//                                   if (_showBrushOptions)
+//                                     CustomPaint(
+//                                         painter: DrawingPainter(
+//                                             points, strokeWidth, brushColor),
+//                                         size: Size.infinite,
+//                                         child:
+//                                         Align(
+//                                           alignment: Alignment.bottomCenter,
+//                                           child: Container(
+//                                             color: Colors.grey,
+//                                             child: SizedBox(
+//                                               height: 80,
+//                                               child: ListView(
+//                                                 scrollDirection: Axis
+//                                                     .horizontal,
+//                                                 children: [
+//                                                   for (BrushColor brush in brushOption
+//                                                       .colors)
+//                                                     ColorButton(
+//                                                       color: brush.color,
+//                                                       //background: brush.background,
+//                                                       onTap: (selectedColor) {
+//                                                         brushColor =
+//                                                             selectedColor;
+//                                                         setState(() {});
+//                                                       },
+//                                                       isSelected: brushColor ==
+//                                                           brush.color,
+//                                                     ),
+//                                                 ],
+//                                               ),
+//                                             ),
+//                                           ),
+//                                         ),
+//                                     ),
+//                                   if (_showTextField)
+//                                     Padding(
+//                                       padding: const EdgeInsets.only(
+//                                         left: 8,
+//                                         right: 8,
+//                                       ),
+//                                       child: TextField(
+//                                         controller: _textEditingController,
+//                                         decoration: const InputDecoration(
+//                                             hintText: "Enter text"),
+//                                       ),
+//                                     ),
+//                                   Positioned(
+//                                     top: textPosition.dy,
+//                                     left: textPosition.dx,
+//                                     child: GestureDetector(
+//                                       onTap: () {
+//                                         setState(() {
+//                                           userEnteredText =
+//                                               _textEditingController.text;
+//                                           _showTextField = false;
+//                                         });
+//                                       },
+//                                       onPanUpdate: (details) {
+//                                         setState(() {
+//                                           textPosition += details.delta;
+//                                         });
+//                                       },
+//                                       onDoubleTap: () {
+//                                         setState(() {
+//                                           userEnteredText = null;
+//                                         });
+//                                       },
+//                                       child: userEnteredText != null
+//                                           ? Text(
+//                                         userEnteredText!,
+//                                         style: TextStyle(
+//                                           color: selectedTextColor,
+//                                           fontSize: 20,
+//                                         ),
+//                                       )
+//                                           : const SizedBox(),
+//                                     ),
+//                                   ),
+//                                   if (_showTextField)
+//                                     Align(
+//                                       alignment: Alignment.bottomCenter,
+//                                       child: SizedBox(
+//                                         height: 70,
+//                                         child: ListView(
+//                                           scrollDirection: Axis.horizontal,
+//                                           children: [
+//                                             for (var color in textColors)
+//                                               GestureDetector(
+//                                                 onTap: () {
+//                                                   setState(() {
+//                                                     selectedTextColor = color;
+//                                                   });
+//                                                 },
+//                                                 child: Container(
+//                                                   margin: const EdgeInsets
+//                                                       .symmetric(horizontal: 5),
+//                                                   width: 40,
+//                                                   height: 50,
+//                                                   decoration: BoxDecoration(
+//                                                     shape: BoxShape.circle,
+//                                                     color: color,
+//                                                     border: Border.all(
+//                                                       color:
+//                                                       selectedTextColor ==
+//                                                           color
+//                                                           ? Colors.white
+//                                                           : Colors
+//                                                           .transparent,
+//                                                       width: 2,
+//                                                     ),
+//                                                   ),
+//                                                 ),
+//                                               ),
+//                                           ],
+//                                         ),
+//                                       ),
+//                                     ),
+//                                 ],
+//                               ),
+//                             ),
 //                           ),
-//                         ) :
-//                         Image.memory(
-//                           imageBytes!,
-//                           fit: BoxFit.contain,
 //                         ),
 //                       ),
 //                     ),
 //                   ),
 //                 ),
 //               ),
-//             ),
-//           if (_showfilterlist)
-//             SizedBox(
-//               height: 120,
-//               child: Column(
-//                 children: [
-//                   SizedBox(
-//                     height: 120,
-//                     child: ListView(
-//                       scrollDirection: Axis.horizontal,
-//                       children: [
-//                         for (var filter in filters)
-//                           GestureDetector(
-//                             onTap: () {
-//                               selectedFilter = filter;
-//                               setState(() {});
-//                             },
-//                             child: Column(children: [
-//                               Container(
-//                                 height: 64,
-//                                 width: 64,
-//                                 margin: const EdgeInsets.symmetric(
-//                                   horizontal: 16,
-//                                   vertical: 12,
-//                                 ),
-//                                 decoration: BoxDecoration(
-//                                   borderRadius: BorderRadius.circular(48),
-//                                   border: Border.all(
-//                                     color: selectedFilter == filter
-//                                         ? Colors.black
-//                                         : Colors.white,
-//                                     width: 2,
+//             // if (_showBrushOptions)
+//             //   Align(
+//             //     alignment: Alignment.bottomCenter,
+//             //     child: Container(
+//             //       color: Colors.grey,
+//             //       child: SizedBox(
+//             //         height: 80,
+//             //         child: ListView(
+//             //           scrollDirection: Axis.horizontal,
+//             //           children: [
+//             //             for (BrushColor brush in brushOption.colors)
+//             //               ColorButton(
+//             //                 color: brush.color,
+//             //                 //background: brush.background,
+//             //                 onTap: (selectedColor) {
+//             //                   brushColor = selectedColor;
+//             //                   setState(() {});
+//             //                 },
+//             //                 isSelected: brushColor == brush.color,
+//             //               ),
+//             //           ],
+//             //         ),
+//             //       ),
+//             //     ),
+//             //   ),
+//             if (_showfilterlist)
+//               SizedBox(
+//                 height: 120,
+//                 child: Column(
+//                   children: [
+//                     SizedBox(
+//                       height: 120,
+//                       child: ListView(
+//                         scrollDirection: Axis.horizontal,
+//                         children: [
+//                           for (var filter in filters)
+//                             GestureDetector(
+//                               onTap: () {
+//                                 selectedFilter = filter;
+//                                 setState(() {});
+//                               },
+//                               child: Column(
+//                                 children: [
+//                                   Container(
+//                                     height: 64,
+//                                     width: 64,
+//                                     margin: const EdgeInsets.symmetric(
+//                                         horizontal: 16, vertical: 12),
+//                                     decoration: BoxDecoration(
+//                                       borderRadius: BorderRadius.circular(48),
+//                                       border: Border.all(
+//                                         color: selectedFilter == filter
+//                                             ? Colors.black
+//                                             : Colors.white,
+//                                         width: 2,
+//                                       ),
+//                                     ),
+//                                     child: ClipRRect(
+//                                       borderRadius: BorderRadius.circular(48),
+//                                       child: FilterAppliedImage(
+//                                         key: Key(
+//                                             'filterPreviewButton:${filter
+//                                                 .name}'),
+//                                         image: imageBytes!,
+//                                         filter: filter,
+//                                         fit: BoxFit.cover,
+//                                       ),
+//                                     ),
 //                                   ),
-//                                 ),
-//                                 child: ClipRRect(
-//                                   borderRadius: BorderRadius.circular(48),
-//                                   child: FilterAppliedImage(
-//                                     key: Key(
-//                                         'filterPreviewButton:${filter.name}'),
-//                                     image: imageBytes!,
-//                                     filter: filter,
-//                                     fit: BoxFit.cover,
+//                                   Text(
+//                                     filter.name,
+//                                     style: const TextStyle(fontSize: 12),
 //                                   ),
-//                                 ),
+//                                 ],
 //                               ),
-//                               Text(
-//                                 (filter.name),
-//                                 style: const TextStyle(fontSize: 12),
-//                               ),
-//                             ]),
-//                           ),
-//                       ],
+//                             ),
+//                         ],
+//                       ),
 //                     ),
-//                   ),
-//                 ],
+//                   ],
+//                 ),
 //               ),
-//             ),
-//           // if (_cropimage)
-//           //   Flexible(
-//           //     child: Transform.rotate(
-//           //       angle: rotationAngle,
-//           //       child: ExtendedImage.memory(
-//           //         imageBytes!,
-//           //         cacheRawData: true,
-//           //         fit: BoxFit.contain,
-//           //         extendedImageEditorKey: _controller,
-//           //         mode: ExtendedImageMode.editor,
-//           //         initEditorConfigHandler: (state) {
-//           //           return EditorConfig(
-//           //             cropAspectRatio: currentRatio,
-//           //           );
-//           //         },
-//           //       ),
-//           //     ),
-//           //   ),
-//           // if (_cropimage)
-//           //   // Container(
-//           //   //   color: Colors.black,
-//           //   //   child: ExtendedImage.memory(
-//           //   //     imageBytes,
-//           //   //     cacheRawData: true,
-//           //   //     fit: BoxFit.contain,
-//           //   //     extendedImageEditorKey: _controller,
-//           //   //     mode: ExtendedImageMode.editor,
-//           //   //     initEditorConfigHandler: (state) {
-//           //   //       return EditorConfig(
-//           //   //         cropAspectRatio: currentRatio,
-//           //   //       );
-//           //   //     },
-//           //   //   ),
-//           //   // ),
-//           //   SafeArea(
-//           //     child: SizedBox(
-//           //       height: 80,
-//           //       child: Column(
-//           //         children: [
-//           //           // IconButton(
-//           //           //   padding: const EdgeInsets.symmetric(horizontal: 8),
-//           //           //   icon: const Icon(Icons.check),
-//           //           //   onPressed: () async {
-//           //           //     var state = _controller.currentState;
-//           //           //
-//           //           //     if (state == null || state.getCropRect() == null) {
-//           //           //       Navigator.pop(context);
-//           //           //     }
-//           //           //
-//           //           //     var data = await cropImageWithThread(
-//           //           //       imageBytes: state!.rawImageData,
-//           //           //       rect: state.getCropRect()!,
-//           //           //     );
-//           //           //
-//           //           //     if (mounted) Navigator.pop(context, data);
-//           //           //   },
-//           //           // ),
-//           //           Container(
-//           //             height: 80,
-//           //             decoration: const BoxDecoration(
-//           //               boxShadow: [
-//           //                 BoxShadow(
-//           //                   color: Colors.black12,
-//           //                   blurRadius: 10,
-//           //                 ),
-//           //               ],
-//           //             ),
-//           //             child: SingleChildScrollView(
-//           //               scrollDirection: Axis.horizontal,
-//           //               child: Row(
-//           //                 mainAxisAlignment: MainAxisAlignment.center,
-//           //                 children: [
-//           //                   // if (widget.reversible &&
-//           //                   //     currentRatio != null &&
-//           //                   //     currentRatio != 1)
-//           //                   //   IconButton(
-//           //                   //     padding: const EdgeInsets.symmetric(
-//           //                   //       horizontal: 8,
-//           //                   //       vertical: 4,
-//           //                   //     ),
-//           //                   //     icon: Icon(
-//           //                   //       Icons.portrait,
-//           //                   //       color: isLandscape ? Colors.grey : Colors.white,
-//           //                   //     ),
-//           //                   //     onPressed: () {
-//           //                   //       currentRatio = 1 / currentRatio!;
-//           //                   //
-//           //                   //       setState(() {});
-//           //                   //     },
-//           //                   //   ),
-//           //                   // if (widget.reversible &&
-//           //                   //     currentRatio != null &&
-//           //                   //     currentRatio != 1)
-//           //                   //   IconButton(
-//           //                   //     padding: const EdgeInsets.symmetric(
-//           //                   //       horizontal: 8,
-//           //                   //       vertical: 4,
-//           //                   //     ),
-//           //                   //     icon: Icon(
-//           //                   //       Icons.landscape,
-//           //                   //       color: isLandscape ? Colors.white : Colors.grey,
-//           //                   //     ),
-//           //                   //     onPressed: () {
-//           //                   //       currentRatio = 1 / currentRatio!;
-//           //                   //
-//           //                   //       setState(() {});
-//           //                   //     },
-//           //                   //   ),
-//           //                   for (var ratio in widget.availableRatios)
-//           //                     TextButton(
-//           //                       onPressed: () {
-//           //                         currentRatio = ratio.ratio;
-//           //                         setState(() {});
-//           //                       },
-//           //                       child: Container(
-//           //                           padding: const EdgeInsets.symmetric(
-//           //                               horizontal: 8, vertical: 4),
-//           //                           child: Text(
-//           //                             (ratio.title),
-//           //                             style: TextStyle(
-//           //                               color: currentRatio == ratio
-//           //                                   ? Colors.white
-//           //                                   : Colors.black,
-//           //                             ),
-//           //                           )),
-//           //                     )
-//           //                 ],
-//           //               ),
-//           //             ),
-//           //           ),
-//           //         ],
-//           //       ),
-//           //     ),
-//           //   ),
-//         ],
+//           ],
+//         ),
 //       ),
 //     );
 //   }
@@ -434,10 +498,19 @@
 //           _rotateRightOption();
 //         }
 //         break;
+//       case 4:
+//         {
+//           _addText();
+//         }
+//         break;
+//       case 5:
+//         {
+//           _brushOption();
+//         }
 //       default:
 //         {
 //           if (kDebugMode) {
-//             print("Options");
+//             print("Dhanywada");
 //           }
 //         }
 //         break;
@@ -447,24 +520,61 @@
 //   void _filterOptions() {
 //     setState(() {
 //       _showfilterlist = !_showfilterlist;
+//       _cropimage = false;
+//       _showBrushOptions = false;
+//       _showTextField = false;
 //     });
 //   }
 //
-//   _cropOptions() {
+//   void _cropOptions() {
 //     setState(() {
+//       _showfilterlist = false;
 //       _cropimage = !_cropimage;
+//       _showBrushOptions = false;
+//       _showTextField = false;
 //     });
 //   }
 //
-//   _rotateLeftOption() {
+//   void _rotateLeftOption() {
 //     setState(() {
-//       rotationAngle += math.pi / 2;
+//       _showfilterlist = false;
+//       _cropimage = false;
+//       _showBrushOptions = false;
+//       rotationAngle += math.pi / 4;
 //     });
 //   }
 //
-//   _rotateRightOption() {
+//   void _rotateRightOption() {
 //     setState(() {
-//       rotationAngle -= math.pi / 2;
+//       _showfilterlist = false;
+//       _cropimage = false;
+//       _showBrushOptions = false;
+//       rotationAngle -= math.pi / 4;
+//     });
+//   }
+//
+//   void _addText() {
+//     setState(() {
+//       _showTextField = !_showTextField;
+//       _showfilterlist = false;
+//       _cropimage = false;
+//       _showBrushOptions = false;
+//     });
+//     if (!_showTextField) {
+//       setState(() {
+//         userEnteredText = _textEditingController.text;
+//       });
+//     }
+//   }
+//
+//   void _brushOption() {
+//     setState(() {
+//       _showBrushOptions = !_showBrushOptions;
+//       if (_showBrushOptions) {
+//         _showfilterlist = false;
+//         _cropimage = false;
+//         _showTextField = false;
+//       }
 //     });
 //   }
 // }
@@ -494,7 +604,6 @@
 //   initState() {
 //     super.initState();
 //
-//     // process filter in background
 //     if (widget.onProcess != null) {
 //       // no filter supplied
 //       if (widget.filter.filters.isEmpty) {
@@ -533,10 +642,8 @@
 //               matrix[18] * pixel.a +
 //               matrix[19];
 //         }
-//
 //         return image;
 //       });
-//
 //       filterTask.getBytesThread().then((result) {
 //         if (widget.onProcess != null && result != null) {
 //           widget.onProcess!(result);
@@ -566,54 +673,88 @@
 //   }
 // }
 //
-// // Future<Uint8List?> cropImageWithThread({
-// //   required Uint8List imageBytes,
-// //   required Rect rect,
-// // }) async {
-// //   img.Command cropTask = img.Command();
-// //   cropTask.decodeImage(imageBytes);
-// //
-// //   cropTask.copyCrop(
-// //     x: rect.topLeft.dx.ceil(),
-// //     y: rect.topLeft.dy.ceil(),
-// //     height: rect.height.ceil(),
-// //     width: rect.width.ceil(),
-// //   );
-// //
-// //   img.Command encodeTask = img.Command();
-// //   encodeTask.subCommand = cropTask;
-// //   encodeTask.encodeJpg();
-// //
-// //   return encodeTask.getBytesThread();
-// // }
-
-//  void _takeScreenShort () async {
-//   RepaintBoundary boundary = _repaintBoundary.currentContext!.findRenderObject() as RepaintBoundary;
-//   ui.Image image = await boundary.toImage(pixelRatio : 3.0);
-//   ByteData? bytes =  await image.toByteData(format:ui.ImageByteFormat.png);
-//   setState(() {
-//     imageBytes=bytes!.buffer.asUint8List();
+// class ColorButton extends StatelessWidget {
+//   final Color color;
+//   final Function(Color) onTap;
+//   final bool isSelected;
+//
+//   const ColorButton({
+//     super.key,
+//     required this.color,
+//     required this.onTap,
+//     this.isSelected = false,
 //   });
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     return GestureDetector(
+//       onTap: () {
+//         onTap(color);
+//       },
+//       child: Container(
+//         height: 34,
+//         width: 34,
+//         margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 23),
+//         decoration: BoxDecoration(
+//           color: color,
+//           borderRadius: BorderRadius.circular(16),
+//           border: Border.all(
+//             color: isSelected ? Colors.yellowAccent : Colors.white54,
+//             width: isSelected ? 3 : 1,
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }
+//
+// class DrawingPainter extends CustomPainter {
+//   final List<Offset?> points;
+//   final double strokeWidth;
+//   final Color brushColor;
+//
+//   DrawingPainter(this.points, this.strokeWidth, this.brushColor);
+//
+//   @override
+//   void paint(Canvas canvas, Size size) {
+//     final paint = Paint()
+//       ..color = brushColor
+//       ..strokeWidth = strokeWidth
+//       ..strokeCap = StrokeCap.round
+//       ..isAntiAlias = true;
+//
+//     for (int i = 0; i < points.length - 1; i++) {
+//       if (points[i] != null && points[i + 1] != null) {
+//         canvas.drawLine(points[i]!, points[i + 1]!, paint);
+//       } else if (points[i] != null && points[i + 1] == null) {
+//         canvas.drawPoints(ui.PointMode.points, [points[i]!], paint);
+//       }
+//     }
+//   }
+//
+//   @override
+//   bool shouldRepaint(covariant CustomPainter oldDelegate) {
+//     return true;
+//   }
 // }
 
-// _takescrshot() async {
-//   RenderRepaintBoundary boundary = _repaintBoundary.currentContext.findRenderObject(); // the key provided
-//   var image = await boundary.toImage();
-//   var byteData = await image.toByteData(format: ImageByteFormat.png);
-//   var pngBytes = byteData.buffer.asUint8List();
-//   print(pngBytes);
-// }
+
+
+
+
 import 'dart:io';
 import 'dart:math' as math;
-import 'package:flutter/rendering.dart';
 import 'dart:ui' as ui;
-import 'package:image/image.dart' as img;
+
 import 'package:colorfilter_generator/colorfilter_generator.dart';
 import 'package:colorfilter_generator/presets.dart';
+import 'package:edit_image/filter/options.dart';
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
+import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -634,15 +775,36 @@ class _FullScreenState extends State<FullScreen> {
   double? currentRatio;
   Uint8List? imageBytes;
   int _selectedIndex = 0;
-  GlobalKey _repaintBoundary = GlobalKey();
+  final GlobalKey _repaintBoundary = GlobalKey();
   bool _showfilterlist = false;
   bool _cropimage = false;
+  bool _showBrushOptions = false;
+  bool _showTextField = false;
+  Color selectedTextColor = Colors.black;
   ColorFilterGenerator selectedFilter = PresetFilters.none;
   double rotationAngle = 0;
   late List<ColorFilterGenerator> filters;
   String? userEnteredText;
-  Offset textPosition = Offset(50, 50); // Default position for the text
-  TextEditingController _textEditingController = TextEditingController();
+  Offset textPosition =  Offset(50, 50);
+  final TextEditingController _textEditingController = TextEditingController();
+  List<Offset?> points = [];
+  double strokeWidth = 3.0;
+  Color brushColor = Colors.white;
+  BrushOption brushOption = const BrushOption();
+
+  final List<Color> textColors = [
+    Colors.black,
+    Colors.red,
+    Colors.blue,
+    Colors.green,
+    Colors.yellow,
+    Colors.purple,
+    Colors.orange,
+    Colors.pink,
+    Colors.indigo,
+    Colors.lightGreenAccent,
+    const Color.fromRGBO(236, 153, 255, 1)
+  ];
 
   @override
   void initState() {
@@ -660,33 +822,37 @@ class _FullScreenState extends State<FullScreen> {
 
   void _sharePressed() async {
     try {
-      RenderRepaintBoundary boundary =
-      _repaintBoundary.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      RenderRepaintBoundary boundary = _repaintBoundary.currentContext!
+          .findRenderObject() as RenderRepaintBoundary;
       ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      ByteData? byteData =
+      await image.toByteData(format: ui.ImageByteFormat.png);
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
       final tempDir = await getTemporaryDirectory();
       final file = await File('${tempDir.path}/shared_image.png').create();
       await file.writeAsBytes(pngBytes);
 
-      final result = await Share.shareXFiles([XFile(file.path)], text: 'Great picture 😊');
+      final result =
+      await Share.shareXFiles([XFile(file.path)], text: 'Great picture 😊');
       if (result.status == ShareResultStatus.success) {
         if (kDebugMode) {
           print('Thank you for sharing the picture!');
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
   Future<void> _captureAndSaveImage() async {
     try {
-      RenderRepaintBoundary boundary =
-      _repaintBoundary.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      RenderRepaintBoundary boundary = _repaintBoundary.currentContext!
+          .findRenderObject() as RenderRepaintBoundary;
       ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      ByteData? byteData =
+      await image.toByteData(format: ui.ImageByteFormat.png);
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
       final params = SaveFileDialogParams(
@@ -696,12 +862,15 @@ class _FullScreenState extends State<FullScreen> {
       final filePath = await FlutterFileDialog.saveFile(params: params);
 
       if (filePath != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Image saved to $filePath')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Image saved to $filePath')));
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save image')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to save image')));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -710,11 +879,21 @@ class _FullScreenState extends State<FullScreen> {
     return Scaffold(
       bottomNavigationBar: BottomNavigationBar(
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.edit, color: Colors.black), label: 'Filter'),
-          BottomNavigationBarItem(icon: Icon(Icons.crop, color: Colors.black), label: 'Crop'),
-          BottomNavigationBarItem(icon: Icon(Icons.rotate_left, color: Colors.black), label: 'Rotate Left'),
-          BottomNavigationBarItem(icon: Icon(Icons.rotate_right, color: Colors.black), label: 'Rotate Right'),
-          BottomNavigationBarItem(icon: Icon(Icons.text_fields, color: Colors.black), label: 'Text'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.edit, color: Colors.black), label: 'Filter'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.crop, color: Colors.black), label: 'Crop'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.rotate_left, color: Colors.black),
+              label: 'Rotate Left'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.rotate_right, color: Colors.black),
+              label: 'Rotate Right'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.text_fields, color: Colors.black),
+              label: 'Text'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.edit, color: Colors.black), label: 'Brush'),
         ],
         currentIndex: _selectedIndex,
         backgroundColor: Colors.white,
@@ -723,7 +902,13 @@ class _FullScreenState extends State<FullScreen> {
       ),
       appBar: AppBar(
         elevation: 0,
-        title: const Text("Edit Image"),
+        title: const Text(
+          "Edit Image",
+          style: TextStyle(
+            wordSpacing: 5,
+            letterSpacing: 2,
+          ),
+        ),
         centerTitle: true,
         actions: [
           IconButton(
@@ -740,71 +925,197 @@ class _FullScreenState extends State<FullScreen> {
       ),
       body: GestureDetector(
         onTap: () {
-          // Hide filter and crop options when tapping outside
           setState(() {
             _showfilterlist = false;
             _cropimage = false;
+            _showTextField = false;
           });
+        },
+        onScaleStart: (details) {
+          if (_showBrushOptions) {
+            setState(() {
+              points.add(details.localFocalPoint);
+            });
+          }
+        },
+        onScaleUpdate: (details) {
+          if (_showBrushOptions) {
+            setState(() {
+              points.add(details.localFocalPoint);
+            });
+          } else if (userEnteredText != null) {
+            setState(() {
+              textPosition = Offset(
+                textPosition.dx + details.focalPointDelta.dx,
+                textPosition.dy + details.focalPointDelta.dy,
+              );
+            });
+          }
+        },
+        onScaleEnd: (details) {
+          if (_showBrushOptions) {
+            setState(() {
+              points.add(null);
+            });
+          }
         },
         child: Column(
           children: [
             if (imageBytes != null)
               Flexible(
+                flex: 1,
                 child: RepaintBoundary(
                   key: _repaintBoundary,
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Transform.rotate(
                       angle: rotationAngle,
-                      child: ColorFiltered(
-                        colorFilter: ColorFilter.matrix(selectedFilter.matrix),
-                        child: Center(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Stack(
-                              children: [
-                                _cropimage
-                                    ? Flexible(
-                                  child: ExtendedImage.memory(
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: ColorFiltered(
+                          colorFilter:
+                          ColorFilter.matrix(selectedFilter.matrix),
+                          child: Center(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child:
+                              Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  _cropimage
+                                      ? Flexible(
+                                    child: ExtendedImage.memory(
+                                      imageBytes!,
+                                      cacheRawData: true,
+                                      fit: BoxFit.contain,
+                                      extendedImageEditorKey: _controller,
+                                      mode: ExtendedImageMode.editor,
+                                      initEditorConfigHandler: (state) {
+                                        return EditorConfig(cropAspectRatio: currentRatio);
+                                      },
+                                    ),
+                                  )
+                                      : Image.memory(
                                     imageBytes!,
-                                    cacheRawData: true,
                                     fit: BoxFit.contain,
-                                    extendedImageEditorKey: _controller,
-                                    mode: ExtendedImageMode.editor,
-                                    initEditorConfigHandler: (state) {
-                                      return EditorConfig(cropAspectRatio: currentRatio);
-                                    },
                                   ),
-                                )
-                                    : Image.memory(
-                                  imageBytes!,
-                                  fit: BoxFit.contain,
-                                ),
-                                if (userEnteredText != null)
+                                  // Handle the brush options or the text field.
+                                  _showBrushOptions
+                                      ? CustomPaint(
+                                    painter: DrawingPainter(points, strokeWidth, brushColor),
+                                    size: Size.infinite,
+                                  )
+                                      : _showTextField
+                                      ? Padding(
+                                    padding: const EdgeInsets.only(left: 8, right: 8),
+                                    child: TextField(
+                                      controller: _textEditingController,
+                                      decoration: const InputDecoration(hintText: "Enter text"),
+                                    ),
+                                  )
+                                      : const SizedBox.shrink(),
+                                  // Handle the text display and interaction
                                   Positioned(
-                                    left: textPosition.dx,
                                     top: textPosition.dy,
+                                    left: textPosition.dx,
                                     child: GestureDetector(
-                                      onPanUpdate: (details) {
+                                      onTap: () {
                                         setState(() {
-                                          textPosition += details.delta;
+                                          userEnteredText = _textEditingController.text;
+                                          _showTextField = false;
+                                        });
+                                      },
+                                      onScaleUpdate: (details) {
+                                        setState(() {
+                                          textPosition = Offset(
+                                            textPosition.dx + details.focalPointDelta.dx,
+                                            textPosition.dy + details.focalPointDelta.dy,
+                                          );
+                                        });
+                                      },
+                                      onDoubleTap: () {
+                                        setState(() {
+                                          userEnteredText = 'Deleted';
                                         });
                                       },
                                       child: Text(
-                                        userEnteredText!,
+                                        userEnteredText.toString(),
                                         style: TextStyle(
-                                          fontSize: 30,
-                                          color: Colors.white,
-                                          backgroundColor: Colors.black.withOpacity(0.5),
+                                          color: selectedTextColor,
+                                          fontSize: 20,
                                         ),
                                       ),
                                     ),
                                   ),
-                              ],
+
+                                  // Display text color selection only if the text field is shown
+                                  _showTextField
+                                      ? Align(
+                                    alignment: Alignment.bottomCenter,
+                                    child: SizedBox(
+                                      height: 70,
+                                      child: ListView(
+                                        scrollDirection: Axis.horizontal,
+                                        children: [
+                                          for (var color in textColors)
+                                            GestureDetector(
+                                              onTap: () {
+                                                setState(() {
+                                                  selectedTextColor = color;
+                                                });
+                                              },
+                                              child: Container(
+                                                margin: const EdgeInsets.symmetric(horizontal: 5),
+                                                width: 40,
+                                                height: 50,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  color: color,
+                                                  border: Border.all(
+                                                    color: selectedTextColor == color
+                                                        ? Colors.white
+                                                        : Colors.transparent,
+                                                    width: 2,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                      : const SizedBox.shrink(),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
+                    ),
+                  ),
+                ),
+              ),
+            if (_showBrushOptions)
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Container(
+                  color: Colors.grey,
+                  child: SizedBox(
+                    height: 80,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        for (BrushColor brush in brushOption.colors)
+                          ColorButton(
+                            color: brush.color,
+                            //background: brush.background,
+                            onTap: (selectedColor) {
+                              brushColor = selectedColor;
+                              setState(() {});
+                            },
+                            isSelected: brushColor == brush.color,
+                          ),
+                      ],
                     ),
                   ),
                 ),
@@ -830,18 +1141,22 @@ class _FullScreenState extends State<FullScreen> {
                                   Container(
                                     height: 64,
                                     width: 64,
-                                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(48),
                                       border: Border.all(
-                                        color: selectedFilter == filter ? Colors.black : Colors.white,
+                                        color: selectedFilter == filter
+                                            ? Colors.black
+                                            : Colors.white,
                                         width: 2,
                                       ),
                                     ),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(48),
                                       child: FilterAppliedImage(
-                                        key: Key('filterPreviewButton:${filter.name}'),
+                                        key: Key(
+                                            'filterPreviewButton:${filter.name}'),
                                         image: imageBytes!,
                                         filter: filter,
                                         fit: BoxFit.cover,
@@ -897,6 +1212,10 @@ class _FullScreenState extends State<FullScreen> {
           _addText();
         }
         break;
+      case 5:
+        {
+          _brushOption();
+        }
       default:
         {
           if (kDebugMode) {
@@ -911,6 +1230,8 @@ class _FullScreenState extends State<FullScreen> {
     setState(() {
       _showfilterlist = !_showfilterlist;
       _cropimage = false;
+      _showBrushOptions = false;
+      _showTextField = false;
     });
   }
 
@@ -918,6 +1239,8 @@ class _FullScreenState extends State<FullScreen> {
     setState(() {
       _showfilterlist = false;
       _cropimage = !_cropimage;
+      _showBrushOptions = false;
+      _showTextField = false;
     });
   }
 
@@ -925,7 +1248,8 @@ class _FullScreenState extends State<FullScreen> {
     setState(() {
       _showfilterlist = false;
       _cropimage = false;
-      rotationAngle -= math.pi / 2;
+      _showBrushOptions = false;
+      rotationAngle += math.pi / 4;
     });
   }
 
@@ -933,39 +1257,34 @@ class _FullScreenState extends State<FullScreen> {
     setState(() {
       _showfilterlist = false;
       _cropimage = false;
-      rotationAngle += math.pi / 2;
+      _showBrushOptions = false;
+      rotationAngle -= math.pi / 4;
     });
   }
 
   void _addText() {
     setState(() {
+      _showTextField = !_showTextField;
       _showfilterlist = false;
       _cropimage = false;
+      _showBrushOptions = false;
     });
+    if (!_showTextField) {
+      setState(() {
+        userEnteredText = _textEditingController.text;
+      });
+    }
+  }
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Add Text"),
-          content: TextField(
-            controller: _textEditingController,
-            decoration: const InputDecoration(hintText: "Enter text"),
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  userEnteredText = _textEditingController.text;
-                });
-                Navigator.of(context).pop();
-              },
-              child: const Text("Add"),
-            ),
-          ],
-        );
-      },
-    );
+  void _brushOption() {
+    setState(() {
+      _showBrushOptions = !_showBrushOptions;
+      if (_showBrushOptions) {
+        _showfilterlist = false;
+        _cropimage = false;
+        _showTextField = false;
+      }
+    });
   }
 }
 
@@ -994,7 +1313,6 @@ class _FilterAppliedImageState extends State<FilterAppliedImage> {
   initState() {
     super.initState();
 
-    // process filter in background
     if (widget.onProcess != null) {
       // no filter supplied
       if (widget.filter.filters.isEmpty) {
@@ -1033,10 +1351,8 @@ class _FilterAppliedImageState extends State<FilterAppliedImage> {
               matrix[18] * pixel.a +
               matrix[19];
         }
-
         return image;
       });
-
       filterTask.getBytesThread().then((result) {
         if (widget.onProcess != null && result != null) {
           widget.onProcess!(result);
@@ -1063,5 +1379,70 @@ class _FilterAppliedImageState extends State<FilterAppliedImage> {
         ),
       ),
     );
+  }
+}
+
+class ColorButton extends StatelessWidget {
+  final Color color;
+  final Function(Color) onTap;
+  final bool isSelected;
+
+  const ColorButton({
+    super.key,
+    required this.color,
+    required this.onTap,
+    this.isSelected = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        onTap(color);
+      },
+      child: Container(
+        height: 34,
+        width: 34,
+        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 23),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? Colors.yellowAccent : Colors.white54,
+            width: isSelected ? 3 : 1,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class DrawingPainter extends CustomPainter {
+  final List<Offset?> points;
+  final double strokeWidth;
+  final Color brushColor;
+
+  DrawingPainter(this.points, this.strokeWidth, this.brushColor);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = brushColor
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round
+      ..isAntiAlias = true;
+
+    for (int i = 0; i < points.length - 1; i++) {
+      if (points[i] != null && points[i + 1] != null) {
+        canvas.drawLine(points[i]!, points[i + 1]!, paint);
+      } else if (points[i] != null && points[i + 1] == null) {
+        canvas.drawPoints(ui.PointMode.points, [points[i]!], paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return true;
   }
 }

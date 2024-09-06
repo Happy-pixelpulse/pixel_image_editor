@@ -45,7 +45,6 @@ dependencies:
   share_plus: ^10.0.0
   flutter_file_dialog: ^3.0.2
   colorfilter_generator: ^0.0.8
-  hand_signature: ^3.0.3
   extended_image: ^8.2.1
   font_awesome_flutter: ^10.7.0
 

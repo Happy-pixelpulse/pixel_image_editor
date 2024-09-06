@@ -2,7 +2,6 @@ import 'package:edit_image/homepage.dart';
 import 'package:edit_image/introScreen.dart';
 import 'package:edit_image/theme/theme_provider.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
 void main() {

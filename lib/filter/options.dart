@@ -1,4 +1,5 @@
 import 'package:colorfilter_generator/colorfilter_generator.dart';
+import 'package:flutter/material.dart';
 
 
 enum OutputFormat {
@@ -19,27 +20,43 @@ class AspectRatio {
   const AspectRatio({required this.title, this.ratio});
 }
 
-class CropOption {
-  final bool reversible;
+class BlurOption {
+  const BlurOption();
+}
 
-  /// List of availble ratios
-  final List<AspectRatio> ratios;
+class BrushOption {
+  /// show background image on draw screen
 
-  const CropOption({
-    this.reversible = true,
-    this.ratios = const [
-      AspectRatio(title: 'Freeform'),
-      AspectRatio(title: '1:1', ratio: 1),
-      AspectRatio(title: '4:3', ratio: 4 / 3),
-      AspectRatio(title: '5:4', ratio: 5 / 4),
-      AspectRatio(title: '7:5', ratio: 7 / 5),
-      AspectRatio(title: '16:9', ratio: 16 / 9),
+  final List<BrushColor> colors;
+
+  const BrushOption({
+
+    this.colors = const [
+      BrushColor(color: Colors.black, background: Colors.white),
+      BrushColor(color: Colors.blue),
+      BrushColor(color: Colors.green),
+      BrushColor(color: Colors.pink),
+      BrushColor(color: Colors.purple),
+      BrushColor(color: Colors.brown),
+      BrushColor(color: Colors.indigo),
+      BrushColor(color: Colors.deepOrange),
+      BrushColor(color: Colors.red),
+      BrushColor(color: Colors.deepPurple),
     ],
   });
 }
 
 
-class FiltersOption {
-  final List<ColorFilterGenerator>? filters;
-  const FiltersOption({this.filters});
+
+class BrushColor {
+  /// Color of brush
+  final Color color;
+
+  /// Background color while brush is active only be used when showBackground is false
+  final Color background;
+
+  const BrushColor({
+    required this.color,
+    this.background = Colors.black,
+  });
 }

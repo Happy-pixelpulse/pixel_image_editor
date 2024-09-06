@@ -59,25 +59,28 @@ class _HomepageState extends State<Homepage> {
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text("Image Edit"),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Switch(
-              value: isSwitched,
-              onChanged: (value) {
-                Provider.of<ThemeProvider>(context, listen: false)
-                    .toggleTheme();
-                setState(() {
-                  isSwitched = value;
-                });
-              },
-            ),
-          ),
-        ],
+        // actions: [
+        //   Padding(
+        //     padding: const EdgeInsets.all(8.0),
+        //     child:
+        //     Switch(
+        //       value: isSwitched,
+        //       onChanged: (value) {
+        //         Provider.of<ThemeProvider>(context, listen: false)
+        //             .toggleTheme();
+        //         setState(() {
+        //           isSwitched = value;
+        //         });
+        //       },
+        //     ),
+        //   ),
+        // ],
       ),
       body: Padding(
         padding: const EdgeInsets.only(top: 50, left: 10, right: 10),
-        child: Column(
+        child: ButtonBar(
+          // alignment: MainAxisAlignment.spaceBetween,
+          mainAxisSize: MainAxisSize.min,
           children: [
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -92,6 +95,16 @@ class _HomepageState extends State<Homepage> {
                   color: Colors.black,
                 ),
               ),
+            ),
+            Switch(
+              value: isSwitched,
+              onChanged: (value) {
+                Provider.of<ThemeProvider>(context, listen: false)
+                    .toggleTheme();
+                setState(() {
+                  isSwitched = value;
+                });
+              },
             ),
           ],
         ),
