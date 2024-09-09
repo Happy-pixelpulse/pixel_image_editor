@@ -9,7 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
-// import 'package:image/image.dart' as img;
+ import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -40,7 +40,7 @@ class _FullScreenState extends State<FullScreen> {
   Offset textPosition = const Offset(50, 50);
   final TextEditingController _textEditingController = TextEditingController();
   List<Offset?> points = [];
-  List<DrawingPoint> savedBrushStrokes = [];
+  //List<DrawingPoint> savedBrushStrokes = [];
 
   double strokeWidth = 3.0;
   Color brushColor = Colors.white;
@@ -533,7 +533,7 @@ class _FullScreenState extends State<FullScreen> {
     if (!_showBrushOptions) {
       setState(() {
         // Save the current brush strokes or update them
-        savedBrushStrokes = List.from(points); // Assuming 'points' holds the current brush strokes
+        //savedBrushStrokes = List.from(points); // Assuming 'points' holds the current brush strokes
       });
     }
 
