@@ -1,8 +1,6 @@
-
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
-
 import 'package:colorfilter_generator/colorfilter_generator.dart';
 import 'package:colorfilter_generator/presets.dart';
 import 'package:edit_image/filter/options.dart';
@@ -11,7 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
-import 'package:image/image.dart' as img;
+// import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -20,13 +18,10 @@ class FullScreen extends StatefulWidget {
     super.key,
     required this.image,
   });
-
   final File image;
-
   @override
   State<FullScreen> createState() => _FullScreenState();
 }
-
 class _FullScreenState extends State<FullScreen> {
   final _controller = GlobalKey<ExtendedImageEditorState>();
   double? currentRatio;
@@ -45,10 +40,11 @@ class _FullScreenState extends State<FullScreen> {
   Offset textPosition = const Offset(50, 50);
   final TextEditingController _textEditingController = TextEditingController();
   List<Offset?> points = [];
+  List<DrawingPoint> savedBrushStrokes = [];
+
   double strokeWidth = 3.0;
   Color brushColor = Colors.white;
   BrushOption brushOption = const BrushOption();
-
   final List<Color> textColors = [
     Colors.black,
     Colors.red,
@@ -62,7 +58,6 @@ class _FullScreenState extends State<FullScreen> {
     Colors.lightGreenAccent,
     const Color.fromRGBO(236, 153, 255, 1)
   ];
-
   @override
   void initState() {
     filters = [PresetFilters.none, ...presetFiltersList.sublist(1)];
@@ -72,18 +67,16 @@ class _FullScreenState extends State<FullScreen> {
     });
     super.initState();
   }
-
   void loadBytes() async {
     imageBytes = await widget.image.readAsBytes();
   }
-
   void _sharePressed() async {
     try {
       RenderRepaintBoundary boundary = _repaintBoundary.currentContext!
           .findRenderObject() as RenderRepaintBoundary;
       ui.Image image = await boundary.toImage(pixelRatio: 3.0);
       ByteData? byteData =
-      await image.toByteData(format: ui.ImageByteFormat.png);
+          await image.toByteData(format: ui.ImageByteFormat.png);
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
       final tempDir = await getTemporaryDirectory();
@@ -91,7 +84,7 @@ class _FullScreenState extends State<FullScreen> {
       await file.writeAsBytes(pngBytes);
 
       final result =
-      await Share.shareXFiles([XFile(file.path)], text: 'Great picture 😊');
+          await Share.shareXFiles([XFile(file.path)], text: 'Great picture 😊');
       if (result.status == ShareResultStatus.success) {
         if (kDebugMode) {
           print('Thank you for sharing the picture!');
@@ -102,14 +95,13 @@ class _FullScreenState extends State<FullScreen> {
           .showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
-
-  Future<void> _captureAndSaveImage() async {
+  Future<void> _SaveImage() async {
     try {
       RenderRepaintBoundary boundary = _repaintBoundary.currentContext!
           .findRenderObject() as RenderRepaintBoundary;
       ui.Image image = await boundary.toImage(pixelRatio: 3.0);
       ByteData? byteData =
-      await image.toByteData(format: ui.ImageByteFormat.png);
+          await image.toByteData(format: ui.ImageByteFormat.png);
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
       final params = SaveFileDialogParams(
@@ -130,7 +122,6 @@ class _FullScreenState extends State<FullScreen> {
           .showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -169,7 +160,7 @@ class _FullScreenState extends State<FullScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            onPressed: _captureAndSaveImage,
+            onPressed: _SaveImage,
             icon: const Icon(Icons.download),
             iconSize: 24,
           ),
@@ -180,175 +171,172 @@ class _FullScreenState extends State<FullScreen> {
           ),
         ],
       ),
-      body: GestureDetector(
-        onTap: () {
-          setState(() {
-            _showfilterlist = false;
-            _cropimage = false;
-            _showTextField = false;
-          });
-        },
-        onScaleStart: (details) {
-          if (_showBrushOptions) {
-            setState(() {
-              points.add(details.localFocalPoint);
-            });
-          }
-        },
-        onScaleUpdate: (details) {
-          if (_showBrushOptions) {
-            setState(() {
-              points.add(details.localFocalPoint);
-            });
-          } else if (userEnteredText != null) {
-            setState(() {
-              textPosition = Offset(
-                textPosition.dx + details.focalPointDelta.dx,
-                textPosition.dy + details.focalPointDelta.dy,
-              );
-            });
-          }
-        },
-        onScaleEnd: (details) {
-          if (_showBrushOptions) {
-            setState(() {
-              points.add(null);
-            });
-          }
-        },
-        child: Column(
-          children: [
-            if (imageBytes != null)
-              Flexible(
-                flex: 1,
-                child: RepaintBoundary(
-                  key: _repaintBoundary,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Transform.rotate(
-                      angle: rotationAngle,
-                      child: Align(
-                        alignment: Alignment.bottomCenter,
-                        child: ColorFiltered(
-                          colorFilter:
-                          ColorFilter.matrix(selectedFilter.matrix),
-                          child: Center(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  _cropimage
-                                      ? Flexible(
-                                    child: ExtendedImage.memory(
-                                      imageBytes!,
-                                      cacheRawData: true,
-                                      fit: BoxFit.contain,
-                                      extendedImageEditorKey: _controller,
-                                      mode: ExtendedImageMode.editor,
-                                      initEditorConfigHandler: (state) {
-                                        return EditorConfig(
-                                            cropAspectRatio:
-                                            currentRatio);
-                                      },
-                                    ),
-                                  )
-                                      :
-                                  Image.memory(
-                                    imageBytes!,
-                                    fit: BoxFit.contain,
-                                  ),
-                                  if (_showBrushOptions)
-                                    CustomPaint(
+      body: Column(
+        children: [
+          if (imageBytes != null)
+            Flexible(
+              flex: 2,
+              child: RepaintBoundary(
+                key: _repaintBoundary,
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Transform.rotate(
+                    angle: rotationAngle,
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: ColorFiltered(
+                        colorFilter:
+                            ColorFilter.matrix(selectedFilter.matrix),
+                        child: Center(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                _cropimage
+                                    ? Flexible(
+                                        child: ExtendedImage.memory(
+                                          imageBytes!,
+                                          cacheRawData: true,
+                                          fit: BoxFit.contain,
+                                          extendedImageEditorKey: _controller,
+                                          mode: ExtendedImageMode.editor,
+                                          initEditorConfigHandler: (state) {
+                                            return EditorConfig(
+                                                cropAspectRatio:
+                                                    currentRatio);
+                                          },
+                                        ),
+                                      )
+                                    : Image.memory(
+                                        imageBytes!,
+                                        fit: BoxFit.contain,
+                                      ),
+                                if (_showBrushOptions)
+                                  GestureDetector(
+                                    onScaleStart: (details) {
+                                      if (_showBrushOptions) {
+                                        setState(() {
+                                          points.add(details.localFocalPoint);
+                                        });
+                                      }
+                                    },
+                                    onScaleUpdate: (details) {
+                                      if (_showBrushOptions) {
+                                        setState(() {
+                                          points.add(details.localFocalPoint);
+                                        });
+                                      } else if (userEnteredText != null) {
+                                        setState(() {
+                                          textPosition = Offset(
+                                            textPosition.dx + details.focalPointDelta.dx,
+                                            textPosition.dy + details.focalPointDelta.dy,
+                                          );
+                                        });
+                                      }
+                                    },
+                                    onScaleEnd: (details) {
+                                      if (_showBrushOptions) {
+                                        setState(() {
+                                          points.add(null);
+                                        });
+                                      }
+                                    },
+                                    child: CustomPaint(
                                       painter: DrawingPainter(
                                           points, strokeWidth, brushColor),
                                       size: Size.infinite,
                                     ),
-                                  if (_showTextField)
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                        left: 8,
-                                        right: 8,
-                                      ),
-                                      child: TextField(
-                                        controller: _textEditingController,
-                                        decoration: const InputDecoration(
-                                            hintText: "Enter text"),
-                                      ),
+                                  ),
+                                if (_showTextField)
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      left: 8,
+                                      right: 8,
                                     ),
-                                  Positioned(
-                                    top: textPosition.dy,
-                                    left: textPosition.dx,
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          userEnteredText =
-                                              _textEditingController.text;
-                                          _showTextField = false;
-                                        });
-                                      },
-                                      onPanUpdate: (details) {
-                                        setState(() {
-                                          textPosition += details.delta;
-                                        });
-                                      },
-                                      onDoubleTap: () {
-                                        setState(() {
-                                          userEnteredText = null;
-                                        });
-                                      },
-                                      child: userEnteredText != null
-                                          ? Text(
-                                        userEnteredText!,
-                                        style: TextStyle(
-                                          color: selectedTextColor,
-                                          fontSize: 20,
-                                        ),
-                                      )
-                                          : const SizedBox(),
+                                    child: TextField(
+                                      controller: _textEditingController,
+                                      decoration: const InputDecoration(
+                                          hintText: "Enter text"),
                                     ),
                                   ),
-                                  if (_showTextField)
-                                    Align(
-                                      alignment: Alignment.bottomCenter,
-                                      child: SizedBox(
-                                        height: 70,
-                                        child: ListView(
-                                          scrollDirection: Axis.horizontal,
-                                          children: [
-                                            for (var color in textColors)
-                                              GestureDetector(
-                                                onTap: () {
-                                                  setState(() {
-                                                    selectedTextColor = color;
-                                                  });
-                                                },
-                                                child: Container(
-                                                  margin: const EdgeInsets
-                                                      .symmetric(horizontal: 5),
-                                                  width: 40,
-                                                  height: 50,
-                                                  decoration: BoxDecoration(
-                                                    shape: BoxShape.circle,
-                                                    color: color,
-                                                    border: Border.all(
-                                                      color:
-                                                      selectedTextColor ==
-                                                          color
-                                                          ? Colors.white
-                                                          : Colors
-                                                          .transparent,
-                                                      width: 2,
-                                                    ),
+                                Positioned(
+                                  top: textPosition.dy,
+                                  left: textPosition.dx,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        userEnteredText =
+                                            _textEditingController.text;
+                                        _showTextField = false;
+                                      });
+                                    },
+                                    onScaleUpdate: (details) {
+                                      setState(() {
+                                        textPosition = Offset(
+                                          textPosition.dx +
+                                              details.focalPointDelta.dx,
+                                          textPosition.dy +
+                                              details.focalPointDelta.dy,
+                                        );
+                                      });
+                                    },
+                                    onDoubleTap: () {
+                                      setState(() {
+                                        userEnteredText = null;
+                                      });
+                                    },
+                                    child: userEnteredText != null
+                                        ? Text(
+                                      userEnteredText!,
+                                      style: TextStyle(
+                                        color: selectedTextColor,
+                                        fontSize: 20,
+                                      ),
+                                    )
+                                        : const SizedBox(),
+                                  ),
+                                ),
+                                if (_showTextField)
+                                  Align(
+                                    alignment: Alignment.bottomCenter,
+                                    child: SizedBox(
+                                      height: 70,
+                                      child: ListView(
+                                        scrollDirection: Axis.horizontal,
+                                        children: [
+                                          for (var color in textColors)
+                                            GestureDetector(
+                                              onTap: () {
+                                                setState(() {
+                                                  selectedTextColor = color;
+                                                });
+                                              },
+                                              child: Container(
+                                                margin: const EdgeInsets
+                                                    .symmetric(horizontal: 5),
+                                                width: 40,
+                                                height: 50,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  color: color,
+                                                  border: Border.all(
+                                                    color:
+                                                    selectedTextColor ==
+                                                        color
+                                                        ? Colors.white
+                                                        : Colors
+                                                        .transparent,
+                                                    width: 2,
                                                   ),
                                                 ),
                                               ),
-                                          ],
-                                        ),
+                                            ),
+                                        ],
                                       ),
                                     ),
-                                ],
-                              ),
+                                  ),
+                              ],
                             ),
                           ),
                         ),
@@ -357,89 +345,89 @@ class _FullScreenState extends State<FullScreen> {
                   ),
                 ),
               ),
-            if (_showBrushOptions)
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Container(
-                  color: Colors.grey,
-                  child: SizedBox(
-                    height: 80,
+            ),
+          if (_showBrushOptions)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                color: Colors.grey,
+                child: SizedBox(
+                  height: 80,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      for (BrushColor brush in brushOption.colors)
+                        ColorButton(
+                          color: brush.color,
+                          //background: brush.background,
+                          onTap: (selectedColor) {
+                            brushColor = selectedColor;
+                            setState(() {});
+                          },
+                          isSelected: brushColor == brush.color,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          if (_showfilterlist)
+            SizedBox(
+              height: 120,
+              child: Column(
+                children: [
+                  SizedBox(
+                    height: 120,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       children: [
-                        for (BrushColor brush in brushOption.colors)
-                          ColorButton(
-                            color: brush.color,
-                            //background: brush.background,
-                            onTap: (selectedColor) {
-                              brushColor = selectedColor;
+                        for (var filter in filters)
+                          GestureDetector(
+                            onTap: () {
+                              selectedFilter = filter;
                               setState(() {});
                             },
-                            isSelected: brushColor == brush.color,
+                            child: Column(
+                              children: [
+                                Container(
+                                  height: 64,
+                                  width: 64,
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(48),
+                                    border: Border.all(
+                                      color: selectedFilter == filter
+                                          ? Colors.black
+                                          : Colors.white,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(48),
+                                    child: FilterAppliedImage(
+                                      key: Key(
+                                          'filterPreviewButton:${filter.name}'),
+                                      image: imageBytes!,
+                                      filter: filter,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  filter.name,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ],
+                            ),
                           ),
                       ],
                     ),
                   ),
-                ),
+                ],
               ),
-            if (_showfilterlist)
-              SizedBox(
-                height: 120,
-                child: Column(
-                  children: [
-                    SizedBox(
-                      height: 120,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: [
-                          for (var filter in filters)
-                            GestureDetector(
-                              onTap: () {
-                                selectedFilter = filter;
-                                setState(() {});
-                              },
-                              child: Column(
-                                children: [
-                                  Container(
-                                    height: 64,
-                                    width: 64,
-                                    margin: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 12),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(48),
-                                      border: Border.all(
-                                        color: selectedFilter == filter
-                                            ? Colors.black
-                                            : Colors.white,
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(48),
-                                      child: FilterAppliedImage(
-                                        key: Key(
-                                            'filterPreviewButton:${filter.name}'),
-                                        image: imageBytes!,
-                                        filter: filter,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                  ),
-                                  Text(
-                                    filter.name,
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
@@ -496,7 +484,6 @@ class _FullScreenState extends State<FullScreen> {
       _showTextField = false;
     });
   }
-
   void _cropOptions() {
     setState(() {
       _showfilterlist = false;
@@ -505,7 +492,6 @@ class _FullScreenState extends State<FullScreen> {
       _showTextField = false;
     });
   }
-
   void _rotateLeftOption() {
     setState(() {
       _showfilterlist = false;
@@ -514,7 +500,6 @@ class _FullScreenState extends State<FullScreen> {
       rotationAngle += math.pi / 4;
     });
   }
-
   void _rotateRightOption() {
     setState(() {
       _showfilterlist = false;
@@ -523,7 +508,6 @@ class _FullScreenState extends State<FullScreen> {
       rotationAngle -= math.pi / 4;
     });
   }
-
   void _addText() {
     setState(() {
       _showTextField = !_showTextField;
@@ -537,7 +521,6 @@ class _FullScreenState extends State<FullScreen> {
       });
     }
   }
-
   void _brushOption() {
     setState(() {
       _showBrushOptions = !_showBrushOptions;
@@ -547,9 +530,15 @@ class _FullScreenState extends State<FullScreen> {
         _showTextField = false;
       }
     });
+    if (!_showBrushOptions) {
+      setState(() {
+        // Save the current brush strokes or update them
+        savedBrushStrokes = List.from(points); // Assuming 'points' holds the current brush strokes
+      });
+    }
+
   }
 }
-
 class FilterAppliedImage extends StatefulWidget {
   final Uint8List image;
   final ColorFilterGenerator filter;
