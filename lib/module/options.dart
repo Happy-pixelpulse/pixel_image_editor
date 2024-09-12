@@ -1,24 +1,4 @@
-import 'package:colorfilter_generator/colorfilter_generator.dart';
 import 'package:flutter/material.dart';
-
-
-enum OutputFormat {
-  /// merge all layers and return jpeg encoded bytes
-  jpeg,
-
-  /// convert all layers into json and return the list
-  json,
-
-  /// merge all layers and return png encoded bytes
-  png
-}
-
-class AspectRatio {
-  final String title;
-  final double? ratio;
-
-  const AspectRatio({required this.title, this.ratio});
-}
 
 class BlurOption {
   const BlurOption();

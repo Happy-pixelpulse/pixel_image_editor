@@ -4,16 +4,19 @@ import 'dart:ui' as ui;
 
 import 'package:colorfilter_generator/colorfilter_generator.dart';
 import 'package:colorfilter_generator/presets.dart';
-import 'package:edit_image/filter/options.dart';
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
-import 'package:image/image.dart' as img;
+
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'module/color_button.dart';
+import 'module/drawing_painter.dart';
+import 'module/filter_applied_image.dart';
+import 'module/options.dart';
 
 class FullScreen extends StatefulWidget {
   const FullScreen({
@@ -49,8 +52,6 @@ class _FullScreenState extends State<FullScreen> {
   List<Offset?> points = [];
   double strokeWidth = 3.0;
   Color brushColor = Colors.white;
-  List<DrawingPoint> point = []; // This stores the points as you draw.
-  List<DrawingPoint> savedBrushStrokes = []; // This will store the final strokes when brush is disabled.
 
 
   BrushOption brushOption = const BrushOption();
@@ -533,226 +534,7 @@ class _FullScreenState extends State<FullScreen> {
         _showTextField = false;
       }
     });
-    // if (!_showBrushOptions) {
-    //  setState(() {
-    //    savedBrushStrokes = List.from(point);
-    //  });
-    // }
-  }
 
-// void _filterOptions() {
-  //   _toggleOptions(showFilterList: !_showfilterlist);
-  // }
-  //
-  // void _cropOptions() {
-  //   _toggleOptions(cropImage: !_cropimage);
-  // }
-  //
-  // void _rotateLeftOption() {
-  //   _rotateOption(rotationIncrement: math.pi / 4);
-  // }
-  //
-  // void _rotateRightOption() {
-  //   _rotateOption(rotationIncrement: -math.pi / 4);
-  // }
-  //
-  // void _addText() {
-  //   _toggleOptions(showTextField: !_showTextField);
-  //   if (!_showTextField) {
-  //     userEnteredText = _textEditingController.text;
-  //     setState(() {}); // Update the state if text is entered
-  //   }
-  // }
-  //
-  // void _brushOption() {
-  //   _toggleOptions(showBrushOptions: !_showBrushOptions);
-  // }
-  //
-  // void _toggleOptions({
-  //   bool? showFilterList,
-  //   bool? cropImage,
-  //   bool? showBrushOptions,
-  //   bool? showTextField,
-  // }) {
-  //   _showfilterlist = showFilterList ?? _showfilterlist;
-  //   _cropimage = cropImage ?? _cropimage;
-  //   _showBrushOptions = showBrushOptions ?? _showBrushOptions;
-  //   _showTextField = showTextField ?? _showTextField;
-  //
-  //   setState(() {});
-  // }
-  //
-  // void _rotateOption({required double rotationIncrement}) {
-  //   rotationAngle += rotationIncrement;
-  //   _showfilterlist = false;
-  //   _cropimage = false;
-  //   _showBrushOptions = false;
-  //   setState(() {}); // One setState after rotation
-  // }
-}
-
-class FilterAppliedImage extends StatefulWidget {
-  final Uint8List image;
-  final ColorFilterGenerator filter;
-  final BoxFit? fit;
-  final Function(Uint8List)? onProcess;
-  final double opacity;
-
-  const FilterAppliedImage({
-    super.key,
-    required this.image,
-    required this.filter,
-    this.fit,
-    this.onProcess,
-    this.opacity = 1,
-  });
-
-  @override
-  State<FilterAppliedImage> createState() => _FilterAppliedImageState();
-}
-
-class _FilterAppliedImageState extends State<FilterAppliedImage> {
-  @override
-  initState() {
-    super.initState();
-
-    if (widget.onProcess != null) {
-      // no filter supplied
-      if (widget.filter.filters.isEmpty) {
-        widget.onProcess!(widget.image);
-        return;
-      }
-
-      var filterTask = img.Command();
-      filterTask.decodeImage(widget.image);
-
-      var matrix = widget.filter.matrix;
-
-      filterTask.filter((image) {
-        for (final pixel in image) {
-          pixel.r = matrix[0] * pixel.r +
-              matrix[1] * pixel.g +
-              matrix[2] * pixel.b +
-              matrix[3] * pixel.a +
-              matrix[4];
-
-          pixel.g = matrix[5] * pixel.r +
-              matrix[6] * pixel.g +
-              matrix[7] * pixel.b +
-              matrix[8] * pixel.a +
-              matrix[9];
-
-          pixel.b = matrix[10] * pixel.r +
-              matrix[11] * pixel.g +
-              matrix[12] * pixel.b +
-              matrix[13] * pixel.a +
-              matrix[14];
-
-          pixel.a = matrix[15] * pixel.r +
-              matrix[16] * pixel.g +
-              matrix[17] * pixel.b +
-              matrix[18] * pixel.a +
-              matrix[19];
-        }
-        return image;
-      });
-      filterTask.getBytesThread().then((result) {
-        if (widget.onProcess != null && result != null) {
-          widget.onProcess!(result);
-        }
-      }).catchError((err, stack) {});
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (widget.filter.filters.isEmpty) {
-      return Image.memory(
-        widget.image,
-        fit: widget.fit,
-      );
-    }
-
-    return Opacity(
-      opacity: widget.opacity,
-      child: widget.filter.build(
-        Image.memory(
-          widget.image,
-          fit: widget.fit,
-        ),
-      ),
-    );
   }
 }
 
-class ColorButton extends StatelessWidget {
-  final Color color;
-  final Function(Color) onTap;
-  final bool isSelected;
-
-  const ColorButton({
-    super.key,
-    required this.color,
-    required this.onTap,
-    this.isSelected = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        onTap(color);
-      },
-      child: Container(
-        height: 34,
-        width: 34,
-        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 23),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? Colors.yellowAccent : Colors.white54,
-            width: isSelected ? 3 : 1,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class DrawingPainter extends CustomPainter {
-  final List<Offset?> points;
-  final double strokeWidth;
-  final Color brushColor;
-
-  DrawingPainter(this.points, this.strokeWidth, this.brushColor);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = brushColor
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round
-      ..isAntiAlias = true;
-
-    for (int i = 0; i < points.length - 1; i++) {
-      if (points[i] != null && points[i + 1] != null) {
-        canvas.drawLine(points[i]!, points[i + 1]!, paint);
-      } else if (points[i] != null && points[i + 1] == null) {
-        canvas.drawPoints(ui.PointMode.points, [points[i]!], paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
-  }
-}
-
-class DrawingPoint {
-  final Offset position;
-  final Paint paint;
-
-  DrawingPoint({required this.position, required this.paint});
-}
