@@ -5,14 +5,13 @@ import 'dart:ui' as ui;
 import 'package:colorfilter_generator/colorfilter_generator.dart';
 import 'package:colorfilter_generator/presets.dart';
 import 'package:extended_image/extended_image.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
-
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+
 import 'module/color_button.dart';
 import 'module/drawing_painter.dart';
 import 'module/filter_applied_image.dart';
@@ -33,7 +32,7 @@ class FullScreen extends StatefulWidget {
 class _FullScreenState extends State<FullScreen> {
   final _controller = GlobalKey<ExtendedImageEditorState>();
   double? currentRatio;
-  FocusNode _focusNode=FocusNode();
+  FocusNode _focusNode = FocusNode();
   Uint8List? imageBytes;
   Widget? image;
   int _selectedIndex = 0;
@@ -52,7 +51,6 @@ class _FullScreenState extends State<FullScreen> {
   List<Offset?> points = [];
   double strokeWidth = 3.0;
   Color brushColor = Colors.white;
-
 
   BrushOption brushOption = const BrushOption();
   final List<Color> textColors = [
@@ -81,13 +79,11 @@ class _FullScreenState extends State<FullScreen> {
 
   void loadBytes() async {
     imageBytes = await widget.image.readAsBytes();
-    image= Image.memory(
+    image = Image.memory(
       imageBytes!,
       fit: BoxFit.contain,
     );
-    setState(() {
-
-    });
+    setState(() {});
   }
 
   void _sharePressed() async {
@@ -193,71 +189,68 @@ class _FullScreenState extends State<FullScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          if (imageBytes != null)
-            Flexible(
-              flex: 2,
-              child: RepaintBoundary(
-                key: _repaintBoundary,
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Transform.rotate(
-                    angle: rotationAngle,
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: ColorFiltered(
-                        colorFilter: ColorFilter.matrix(selectedFilter.matrix),
-                        child: Center(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child:
-                            GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  userEnteredText =
-                                      _textEditingController.text;
-                                  _showTextField = false;
-                                });
-                              },
-                              onLongPress: () {
-                                setState(() {
-                                  userEnteredText = null;
-                                });
-                              },
-                              onScaleUpdate: (details) {
-                                setState(() {
-                                  textPosition = Offset(
-                                    textPosition.dx +
-                                        details.focalPointDelta.dx,
-                                    textPosition.dy +
-                                        details.focalPointDelta.dy,
-                                  );
-                                });
-                                if(_showBrushOptions) {
-                                  setState(() {
-                                    points.add(details.localFocalPoint);
-                                  });
-                                }
-                              },
+      body: GestureDetector(
+        onTap: () {
+          setState(() {
+            userEnteredText = _textEditingController.text;
+            _showTextField = false;
+          });
+        },
+        onLongPress: () {
+          setState(() {
+            userEnteredText = null;
+          });
+        },
+        onScaleUpdate: (details) {
+          if (_showTextField) {
+            setState(() {
+              textPosition = Offset(
+                textPosition.dx +
+                    details.focalPointDelta.dx,
+                textPosition.dy +
+                    details.focalPointDelta.dy,
+              );
+            });
+          }
+          if (_showBrushOptions) {
+            setState(() {
+              points.add(details.localFocalPoint);
+            });
+          }
+        },
+        child: Column(
+          children: [
+            if (image != null)
+              Flexible(
+                child: RepaintBoundary(
+                  key: _repaintBoundary,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Transform.rotate(
+                      angle: rotationAngle,
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: ColorFiltered(
+                          colorFilter: ColorFilter.matrix(selectedFilter.matrix),
+                          child: Center(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
                               child: Stack(
                                 alignment: Alignment.center,
                                 children: [
-                                  _cropimage
-                                      ? Flexible(
-                                    child: ExtendedImage.memory(
-                                      imageBytes!,
-                                      cacheRawData: false,
-                                      fit: BoxFit.contain,
-                                      extendedImageEditorKey: _controller,
-                                      mode: ExtendedImageMode.editor,
-                                      initEditorConfigHandler: (state) {
-                                        return EditorConfig(
-                                            cropAspectRatio: currentRatio);
-                                      },
-                                    ),
-                                  )
-                                      : image!,
+                                  _cropimage?
+                                  ExtendedImage.memory(
+                                    imageBytes!,
+                                    cacheRawData: true,
+                                    fit: BoxFit.contain,
+                                    extendedImageEditorKey: _controller,
+                                    mode: ExtendedImageMode.editor,
+                                    initEditorConfigHandler: (state) {
+                                      return EditorConfig(
+                                        cropAspectRatio: currentRatio,
+                                      );
+                                    },
+                                  ) : image!,
                                   if (_showTextField)
                                     Padding(
                                       padding: const EdgeInsets.only(
@@ -300,127 +293,123 @@ class _FullScreenState extends State<FullScreen> {
                   ),
                 ),
               ),
-            ),
-          if (_showTextField)
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: SizedBox(
-                height: 70,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    for (var color in textColors)
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            selectedTextColor = color;
-                          });
-                        },
-                        child: Container(
-                          margin:
-                          const EdgeInsets.symmetric(
-                              horizontal: 5),
-                          width: 40,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: color,
-                            border: Border.all(
-                              color: selectedTextColor ==
-                                  color
-                                  ? Colors.white
-                                  : Colors.transparent,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          if (_showBrushOptions)
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Container(
-                color: Colors.grey,
+            if (_showTextField)
+              Align(
+                alignment: Alignment.bottomCenter,
                 child: SizedBox(
-                  height: 80,
+                  height: 70,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     children: [
-                      for (BrushColor brush in brushOption.colors)
-                        ColorButton(
-                          color: brush.color,
-                          //background: brush.background,
-                          onTap: (selectedColor) {
-                            brushColor = selectedColor;
-                            setState(() {});
+                      for (var color in textColors)
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              selectedTextColor = color;
+                            });
                           },
-                          isSelected: brushColor == brush.color,
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 5),
+                            width: 40,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: color,
+                              border: Border.all(
+                                color: selectedTextColor == color
+                                    ? Colors.white
+                                    : Colors.transparent,
+                                width: 2,
+                              ),
+                            ),
+                          ),
                         ),
                     ],
                   ),
                 ),
               ),
-            ),
-          if (_showfilterlist)
-            SizedBox(
-              height: 120,
-              child: Column(
-                children: [
-                  SizedBox(
-                    height: 120,
+            if (_showBrushOptions)
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Container(
+                  color: Colors.grey,
+                  child: SizedBox(
+                    height: 80,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       children: [
-                        for (var filter in filters)
-                          GestureDetector(
-                            onTap: () {
-                              selectedFilter = filter;
+                        for (BrushColor brush in brushOption.colors)
+                          ColorButton(
+                            color: brush.color,
+                            onTap: (selectedColor) {
+                              brushColor = selectedColor;
                               setState(() {});
                             },
-                            child: Column(
-                              children: [
-                                Container(
-                                  height: 64,
-                                  width: 64,
-                                  margin: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 12),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(48),
-                                    border: Border.all(
-                                      color: selectedFilter == filter
-                                          ? Colors.black
-                                          : Colors.white,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(48),
-                                    child: FilterAppliedImage(
-                                      key: Key(
-                                          'filterPreviewButton:${filter.name}'),
-                                      image: imageBytes!,
-                                      filter: filter,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                ),
-                                Text(
-                                  filter.name,
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              ],
-                            ),
+                            isSelected: brushColor == brush.color,
                           ),
                       ],
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-        ],
+            if (_showfilterlist)
+              SizedBox(
+                height: 120,
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: 120,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          for (var filter in filters)
+                            GestureDetector(
+                              onTap: () {
+                                selectedFilter = filter;
+                                setState(() {});
+                              },
+                              child: Column(
+                                children: [
+                                  Container(
+                                    height: 64,
+                                    width: 64,
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(48),
+                                      border: Border.all(
+                                        color: selectedFilter == filter
+                                            ? Colors.black
+                                            : Colors.white,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(48),
+                                      child: FilterAppliedImage(
+                                        key: Key(
+                                            'filterPreviewButton:${filter.name}'),
+                                        image: imageBytes!,
+                                        filter: filter,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    filter.name,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -474,7 +463,7 @@ class _FullScreenState extends State<FullScreen> {
       _showfilterlist = !_showfilterlist;
       _cropimage = false;
       _showBrushOptions = false;
-      _focusNode.unfocus();
+      // _focusNode.unfocus();
       _showTextField = false;
     });
   }
@@ -485,7 +474,7 @@ class _FullScreenState extends State<FullScreen> {
       _cropimage = !_cropimage;
       _showBrushOptions = false;
       _showTextField = false;
-      _focusNode.unfocus();
+      // _focusNode.requestFocus();
     });
   }
 
@@ -495,7 +484,7 @@ class _FullScreenState extends State<FullScreen> {
       _cropimage = false;
       _showBrushOptions = false;
       rotationAngle += math.pi / 4;
-      _focusNode.unfocus();
+      // _focusNode.unfocus();
     });
   }
 
@@ -505,19 +494,18 @@ class _FullScreenState extends State<FullScreen> {
       _cropimage = false;
       _showBrushOptions = false;
       rotationAngle -= math.pi / 4;
-      _focusNode.unfocus();
+      // _focusNode.unfocus();
     });
   }
 
   void _addText() {
     setState(() {
-      _showTextField = true;
+      _showTextField = !_showTextField;
       _showfilterlist = false;
       _cropimage = false;
       _showBrushOptions = false;
     });
     if (_showTextField) {
-
       setState(() {
         userEnteredText = _textEditingController.text;
         _focusNode.requestFocus();
@@ -532,9 +520,8 @@ class _FullScreenState extends State<FullScreen> {
         _showfilterlist = false;
         _cropimage = false;
         _showTextField = false;
+        _focusNode.unfocus();
       }
     });
-
   }
 }
-
