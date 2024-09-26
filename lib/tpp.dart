@@ -1,41 +1,27 @@
 import 'dart:io';
-import 'dart:math' as math;
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:colorfilter_generator/colorfilter_generator.dart';
 import 'package:colorfilter_generator/presets.dart';
 import 'package:extended_image/extended_image.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
-
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'module/color_button.dart';
+import 'full_screen.dart';
 import 'module/drawing_painter.dart';
-import 'module/filter_applied_image.dart';
 import 'module/options.dart';
 
-class FullScreen extends StatefulWidget {
-  const FullScreen({
-    super.key,
-    required this.image,
-  });
-
-  final File image;
-
-  @override
-  State<FullScreen> createState() => _FullScreenState();
-}
 
 class _FullScreenState extends State<FullScreen> {
   final _controller = GlobalKey<ExtendedImageEditorState>();
   double? currentRatio;
-  FocusNode _focusNode=FocusNode();
-  Uint8List? imageBytes;
-  Widget? image;
+  FocusNode _focusNode = FocusNode();
+  late Uint8List imageBytes;  // Removed the nullability
+  late Widget image;          // Removed the nullability
   int _selectedIndex = 0;
   final GlobalKey _repaintBoundary = GlobalKey();
   bool _showfilterlist = false;
@@ -52,7 +38,6 @@ class _FullScreenState extends State<FullScreen> {
   List<Offset?> points = [];
   double strokeWidth = 3.0;
   Color brushColor = Colors.white;
-
 
   BrushOption brushOption = const BrushOption();
   final List<Color> textColors = [
@@ -81,13 +66,11 @@ class _FullScreenState extends State<FullScreen> {
 
   void loadBytes() async {
     imageBytes = await widget.image.readAsBytes();
-    image= Image.memory(
-      imageBytes!,
+    image = Image.memory(
+      imageBytes,
       fit: BoxFit.contain,
     );
-    setState(() {
-
-    });
+    setState(() {});
   }
 
   void _sharePressed() async {
@@ -144,6 +127,33 @@ class _FullScreenState extends State<FullScreen> {
     }
   }
 
+  Future<void> _onCheckPressed() async {
+    if (_cropimage) {
+      try {
+        final editorState = _controller.currentState;
+        final cropRect = editorState?.getCropRect();
+        if (cropRect != null) {
+          final newBytes = await cropImageWithThread(
+            imageBytes: imageBytes,
+            rect: cropRect,
+          );
+
+          if (newBytes != null) {
+            setState(() {
+              imageBytes = newBytes;
+              image = Image.memory(imageBytes);  // Re-initialize without null check
+              _cropimage = false;
+            });
+          }
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error cropping image: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -175,8 +185,8 @@ class _FullScreenState extends State<FullScreen> {
         title: const Text(
           "Edit Image",
           style: TextStyle(
-            wordSpacing: 5,
-            letterSpacing: 2,
+            wordSpacing: 4,
+            // letterSpacing: 2,
           ),
         ),
         centerTitle: true,
@@ -191,104 +201,112 @@ class _FullScreenState extends State<FullScreen> {
             icon: const Icon(Icons.share),
             iconSize: 24,
           ),
+          IconButton(
+            icon: const Icon(Icons.check),
+            onPressed: _onCheckPressed,
+            iconSize: 24,
+          ),
         ],
       ),
       body: Column(
         children: [
-          if (imageBytes != null)
+          if (_cropimage)
             Flexible(
-              flex: 2,
               child: RepaintBoundary(
                 key: _repaintBoundary,
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Transform.rotate(
-                    angle: rotationAngle,
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: ColorFiltered(
-                        colorFilter: ColorFilter.matrix(selectedFilter.matrix),
-                        child: Center(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child:
-                            GestureDetector(
-                              onTap: () {
+                child: ExtendedImage.file(
+                  widget.image,
+                  fit: BoxFit.contain,
+                  mode: ExtendedImageMode.editor,
+                  extendedImageEditorKey: _controller,
+                  initEditorConfigHandler: (state) {
+                    return EditorConfig(
+                      cropRectPadding: const EdgeInsets.all(20.0),
+                      cropAspectRatio: currentRatio,
+                    );
+                  },
+                ),
+              ),
+            ),
+          if (!_cropimage)
+            Flexible(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Transform.rotate(
+                  angle: rotationAngle,
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: ColorFiltered(
+                      colorFilter: ColorFilter.matrix(selectedFilter.matrix),
+                      child: Center(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                userEnteredText = _textEditingController.text;
+                                _showTextField = false;
+                              });
+                            },
+                            onLongPress: () {
+                              setState(() {
+                                userEnteredText = null;
+                              });
+                            },
+                            onScaleUpdate: (details) {
+                              if (_showTextField) {
                                 setState(() {
-                                  userEnteredText = _textEditingController.text;
-                                  _showTextField = false;
+                                  textPosition = Offset(
+                                    textPosition.dx +
+                                        details.focalPointDelta.dx,
+                                    textPosition.dy +
+                                        details.focalPointDelta.dy,
+                                  );
                                 });
-                              },
-                              onLongPress: () {
+                              }
+                              if (_showBrushOptions) {
                                 setState(() {
-                                  userEnteredText = null;
+                                  points.add(details.localFocalPoint);
                                 });
-                              },
-                              onScaleUpdate: (details) {
-                                if (_showTextField) {
-                                  setState(() {
-                                    textPosition = Offset(
-                                      textPosition.dx + details.focalPointDelta.dx,
-                                      textPosition.dy + details.focalPointDelta.dy,
-                                    );
-                                  });
-                                }
-
-                                if (_showBrushOptions) {
-                                  // Get the render box of the image
-                                  RenderBox renderBox = context.findRenderObject() as RenderBox;
-
-                                  // Get the size of the image
-                                  Size imageSize = renderBox.size;
-
-                                  // Get the local position of the user's touch within the widget
-                                  Offset localPosition = renderBox.globalToLocal(details.focalPoint);
-
-                                  // Define the boundaries of the image
-                                  Rect imageRect = Rect.fromLTWH(0, 0, imageSize.width, imageSize.height);
-
-                                  // Restrict drawing to the image's boundaries
-                                  if (imageRect.contains(localPosition)) {
-                                    setState(() {
-                                      points.add(localPosition);
-                                    });
-                                  }
-                                }
-                              },
-                              onScaleEnd: (details) {
-                                if (_showBrushOptions) {
-                                  points.add(null); // Add a null point to break the line when lifting the finger
-                                }
-                              },
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  _cropimage
-                                      ? SizedBox(
-                                    child: ExtendedImage.memory(
-                                      imageBytes!,
-                                      cacheRawData: true,
-                                      fit: BoxFit.contain,
-                                      extendedImageEditorKey: _controller,
-                                      mode: ExtendedImageMode.editor,
-                                      initEditorConfigHandler: (state) {
-                                        return EditorConfig(cropAspectRatio: currentRatio);
-                                      },
+                              }
+                            },
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                image,
+                                if (_showTextField)
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      left: 8,
+                                      right: 8,
+                                    ),
+                                    child: TextField(
+                                      focusNode: _focusNode,
+                                      controller: _textEditingController,
+                                      decoration: const InputDecoration(
+                                          hintText: "Enter text"),
+                                    ),
+                                  ),
+                                Positioned(
+                                  top: textPosition.dy,
+                                  left: textPosition.dx,
+                                  child: userEnteredText != null
+                                      ? Text(
+                                    userEnteredText!,
+                                    style: TextStyle(
+                                      color: selectedTextColor,
+                                      fontSize: 20,
                                     ),
                                   )
-                                      : Image.memory(
-                                    imageBytes!,
-                                    fit: BoxFit.contain,
-                                  ),
-                                  // Your other widgets
-                                  CustomPaint(
-                                    painter: DrawingPainter(points, strokeWidth, brushColor),
-                                    size: Size.infinite,
-                                  ),
-                                ],
-                              ),
+                                      : const SizedBox(),
+                                ),
+                                CustomPaint(
+                                  painter: DrawingPainter(
+                                      points, strokeWidth, brushColor),
+                                  size: Size.infinite,
+                                ),
+                              ],
                             ),
-
                           ),
                         ),
                       ),
@@ -298,122 +316,33 @@ class _FullScreenState extends State<FullScreen> {
               ),
             ),
           if (_showTextField)
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: SizedBox(
-                height: 70,
-                child: ListView(
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Container(
+                width: double.infinity,
+                height: 50,
+                child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  children: [
-                    for (var color in textColors)
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            selectedTextColor = color;
-                          });
-                        },
-                        child: Container(
-                          margin:
-                          const EdgeInsets.symmetric(
-                              horizontal: 5),
-                          width: 40,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: color,
-                            border: Border.all(
-                              color: selectedTextColor ==
-                                  color
-                                  ? Colors.white
-                                  : Colors.transparent,
-                              width: 2,
-                            ),
-                          ),
+                  itemCount: textColors.length,
+                  itemBuilder: (context, index) {
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          selectedTextColor = textColors[index];
+                        });
+                      },
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        margin: const EdgeInsets.symmetric(horizontal: 5),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: textColors[index],
                         ),
                       ),
-                  ],
+                    );
+                  },
                 ),
-              ),
-            ),
-          if (_showBrushOptions)
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Container(
-                color: Colors.grey,
-                child: SizedBox(
-                  height: 80,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      for (BrushColor brush in brushOption.colors)
-                        ColorButton(
-                          color: brush.color,
-                          //background: brush.background,
-                          onTap: (selectedColor) {
-                            brushColor = selectedColor;
-                            setState(() {});
-                          },
-                          isSelected: brushColor == brush.color,
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          if (_showfilterlist)
-            SizedBox(
-              height: 120,
-              child: Column(
-                children: [
-                  SizedBox(
-                    height: 120,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        for (var filter in filters)
-                          GestureDetector(
-                            onTap: () {
-                              selectedFilter = filter;
-                              setState(() {});
-                            },
-                            child: Column(
-                              children: [
-                                Container(
-                                  height: 64,
-                                  width: 64,
-                                  margin: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 12),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(48),
-                                    border: Border.all(
-                                      color: selectedFilter == filter
-                                          ? Colors.black
-                                          : Colors.white,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(48),
-                                    child: FilterAppliedImage(
-                                      key: Key(
-                                          'filterPreviewButton:${filter.name}'),
-                                      image: imageBytes!,
-                                      filter: filter,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                ),
-                                Text(
-                                  filter.name,
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
               ),
             ),
         ],
@@ -424,113 +353,43 @@ class _FullScreenState extends State<FullScreen> {
   void _onBottomNavigationBarTap(int index) {
     setState(() {
       _selectedIndex = index;
-    });
-    switch (_selectedIndex) {
-      case 0:
-        {
-          _filterOptions();
-        }
-        break;
-      case 1:
-        {
-          _cropOptions();
-        }
-        break;
-      case 2:
-        {
-          _rotateLeftOption();
-        }
-        break;
-      case 3:
-        {
-          _rotateRightOption();
-        }
-        break;
-      case 4:
-        {
-          _addText();
-        }
-        break;
-      case 5:
-        {
-          _brushOption();
-        }
-      default:
-        {
-          if (kDebugMode) {
-            print("Dhanywada");
-          }
-        }
-        break;
-    }
-  }
-
-  void _filterOptions() {
-    setState(() {
-      _showfilterlist = !_showfilterlist;
-      _cropimage = false;
-      _showBrushOptions = false;
-      _focusNode.unfocus();
-      _showTextField = false;
-    });
-  }
-
-  void _cropOptions() {
-    setState(() {
-      _showfilterlist = false;
-      _cropimage = !_cropimage;
-      _showBrushOptions = false;
-      _showTextField = false;
-      _focusNode.unfocus();
-    });
-  }
-
-  void _rotateLeftOption() {
-    setState(() {
-      _showfilterlist = false;
-      _cropimage = false;
-      _showBrushOptions = false;
-      rotationAngle += math.pi / 4;
-      _focusNode.unfocus();
-    });
-  }
-
-  void _rotateRightOption() {
-    setState(() {
-      _showfilterlist = false;
-      _cropimage = false;
-      _showBrushOptions = false;
-      rotationAngle -= math.pi / 4;
-      _focusNode.unfocus();
-    });
-  }
-
-  void _addText() {
-    setState(() {
-      _showTextField = true;
-      _showfilterlist = false;
-      _cropimage = false;
-      _showBrushOptions = false;
-    });
-    if (_showTextField) {
-
-      setState(() {
-        userEnteredText = _textEditingController.text;
-        _focusNode.requestFocus();
-      });
-    }
-  }
-
-  void _brushOption() {
-    setState(() {
-      _showBrushOptions = !_showBrushOptions;
-      if (_showBrushOptions) {
-        _showfilterlist = false;
-        _cropimage = false;
-        _showTextField = false;
+      switch (index) {
+        case 0:
+          _showfilterlist = !_showfilterlist;
+          _cropimage = false;
+          _showBrushOptions = false;
+          _showTextField = false;
+          break;
+        case 1:
+          _cropimage = !_cropimage;
+          _showfilterlist = false;
+          _showBrushOptions = false;
+          _showTextField = false;
+          break;
+        case 2:
+          setState(() {
+            rotationAngle -= pi / 2;
+          });
+          break;
+        case 3:
+          setState(() {
+            rotationAngle += pi / 2;
+          });
+          break;
+        case 4:
+          _showTextField = !_showTextField;
+          _focusNode.requestFocus();
+          _showfilterlist = false;
+          _showBrushOptions = false;
+          _cropimage = false;
+          break;
+        case 5:
+          _showBrushOptions = !_showBrushOptions;
+          _showTextField = false;
+          _showfilterlist = false;
+          _cropimage = false;
+          break;
       }
     });
-
   }
 }
-

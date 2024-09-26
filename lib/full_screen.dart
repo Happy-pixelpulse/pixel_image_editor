@@ -3,18 +3,19 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:colorfilter_generator/colorfilter_generator.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:colorfilter_generator/presets.dart';
-import 'package:edit_image/module/color_button.dart';
-import 'package:edit_image/module/drawing_painter.dart';
-import 'package:edit_image/module/filter_applied_image.dart';
-import 'package:edit_image/module/options.dart';
-import 'package:extended_image/extended_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+
+import 'module/color_button.dart';
+import 'module/drawing_painter.dart';
+import 'module/filter_applied_image.dart';
+import 'module/options.dart';
 
 class FullScreen extends StatefulWidget {
   const FullScreen({
@@ -29,8 +30,8 @@ class FullScreen extends StatefulWidget {
 }
 
 class _FullScreenState extends State<FullScreen> {
-  final _controller = GlobalKey<ExtendedImageEditorState>();
   double? currentRatio;
+  final FocusNode _focusNode = FocusNode();
   Uint8List? imageBytes;
   Widget? image;
   int _selectedIndex = 0;
@@ -49,8 +50,8 @@ class _FullScreenState extends State<FullScreen> {
   List<Offset?> points = [];
   double strokeWidth = 3.0;
   Color brushColor = Colors.white;
-  BrushOption brushOption = const BrushOption();
 
+  BrushOption brushOption = const BrushOption();
   final List<Color> textColors = [
     Colors.black,
     Colors.red,
@@ -81,9 +82,10 @@ class _FullScreenState extends State<FullScreen> {
       imageBytes!,
       fit: BoxFit.contain,
     );
+    setState(() {});
   }
 
-  void _sharePressed() async {
+  Future<void> _sharePressed() async {
     try {
       RenderRepaintBoundary boundary = _repaintBoundary.currentContext!
           .findRenderObject() as RenderRepaintBoundary;
@@ -109,7 +111,7 @@ class _FullScreenState extends State<FullScreen> {
     }
   }
 
-  Future<void> _captureAndSaveImage() async {
+  Future<void> _saveImage() async {
     try {
       RenderRepaintBoundary boundary = _repaintBoundary.currentContext!
           .findRenderObject() as RenderRepaintBoundary;
@@ -168,14 +170,14 @@ class _FullScreenState extends State<FullScreen> {
         title: const Text(
           "Edit Image",
           style: TextStyle(
-            wordSpacing: 5,
-            letterSpacing: 2,
+             wordSpacing: 4,
+            // letterSpacing: 2,
           ),
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            onPressed: _captureAndSaveImage,
+            onPressed:_saveImage,
             icon: const Icon(Icons.download),
             iconSize: 24,
           ),
@@ -188,9 +190,7 @@ class _FullScreenState extends State<FullScreen> {
       ),
       body: Column(
         children: [
-          if (imageBytes != null)
             Flexible(
-              flex: 2,
               child: RepaintBoundary(
                 key: _repaintBoundary,
                 child: Padding(
@@ -207,8 +207,7 @@ class _FullScreenState extends State<FullScreen> {
                             child: GestureDetector(
                               onTap: () {
                                 setState(() {
-                                  _showfilterlist = false;
-                                  _cropimage = false;
+                                  userEnteredText = _textEditingController.text;
                                   _showTextField = false;
                                 });
                               },
@@ -218,14 +217,16 @@ class _FullScreenState extends State<FullScreen> {
                                 });
                               },
                               onScaleUpdate: (details) {
-                                setState(() {
-                                  textPosition = Offset(
-                                    textPosition.dx +
-                                        details.focalPointDelta.dx,
-                                    textPosition.dy +
-                                        details.focalPointDelta.dy,
-                                  );
-                                });
+                                if (_showTextField) {
+                                  setState(() {
+                                    textPosition = Offset(
+                                      textPosition.dx +
+                                          details.focalPointDelta.dx,
+                                      textPosition.dy +
+                                          details.focalPointDelta.dy,
+                                    );
+                                  });
+                                }
                                 if (_showBrushOptions) {
                                   setState(() {
                                     points.add(details.localFocalPoint);
@@ -235,24 +236,8 @@ class _FullScreenState extends State<FullScreen> {
                               child: Stack(
                                 alignment: Alignment.center,
                                 children: [
-                                  _cropimage
-                                      ? ExtendedImage.memory(
-                                          imageBytes!,
-                                          cacheRawData: true,
-                                          fit: BoxFit.contain,
-                                          extendedImageEditorKey: _controller,
-                                          mode: ExtendedImageMode.editor,
-                                          initEditorConfigHandler: (state) {
-                                            return EditorConfig(
-                                                cropAspectRatio: currentRatio);
-                                          },
-                                        )
-                                      : image!,
-                                  CustomPaint(
-                                    painter: DrawingPainter(
-                                        points, strokeWidth, brushColor),
-                                    size: Size.infinite,
-                                  ),
+                                  if (image != null)
+                                    image!,
                                   if (_showTextField)
                                     Padding(
                                       padding: const EdgeInsets.only(
@@ -260,6 +245,7 @@ class _FullScreenState extends State<FullScreen> {
                                         right: 8,
                                       ),
                                       child: TextField(
+                                        focusNode: _focusNode,
                                         controller: _textEditingController,
                                         decoration: const InputDecoration(
                                             hintText: "Enter text"),
@@ -268,39 +254,21 @@ class _FullScreenState extends State<FullScreen> {
                                   Positioned(
                                     top: textPosition.dy,
                                     left: textPosition.dx,
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          userEnteredText =
-                                              _textEditingController.text;
-                                          _showTextField = false;
-                                        });
-                                      },
-                                      onScaleUpdate: (details) {
-                                        setState(() {
-                                          textPosition = Offset(
-                                            textPosition.dx +
-                                                details.focalPointDelta.dx,
-                                            textPosition.dy +
-                                                details.focalPointDelta.dy,
-                                          );
-                                        });
-                                      },
-                                      onDoubleTap: () {
-                                        setState(() {
-                                          userEnteredText = null;
-                                        });
-                                      },
-                                      child: userEnteredText != null
-                                          ? Text(
-                                              userEnteredText!,
-                                              style: TextStyle(
-                                                color: selectedTextColor,
-                                                fontSize: 20,
-                                              ),
-                                            )
-                                          : const SizedBox(),
-                                    ),
+                                    child: userEnteredText != null
+                                        ? Text(
+                                            userEnteredText!,
+                                            style: TextStyle(
+                                              color: selectedTextColor,
+                                              fontSize: 20,
+                                            ),
+                                          )
+                                        : const SizedBox(),
+                                  ),
+                                  CustomPaint(
+                                    painter: DrawingPainter(
+                                        points, strokeWidth, brushColor),
+                                    size: Size.infinite,
+                                    // child: image,
                                   ),
                                 ],
                               ),
@@ -309,31 +277,6 @@ class _FullScreenState extends State<FullScreen> {
                         ),
                       ),
                     ),
-                  ),
-                ),
-              ),
-            ),
-          if (_showBrushOptions)
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Container(
-                color: Colors.grey,
-                child: SizedBox(
-                  height: 80,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      for (BrushColor brush in brushOption.colors)
-                        ColorButton(
-                          color: brush.color,
-                          //background: brush.background,
-                          onTap: (selectedColor) {
-                            brushColor = selectedColor;
-                            setState(() {});
-                          },
-                          isSelected: brushColor == brush.color,
-                        ),
-                    ],
                   ),
                 ),
               ),
@@ -370,6 +313,30 @@ class _FullScreenState extends State<FullScreen> {
                         ),
                       ),
                   ],
+                ),
+              ),
+            ),
+          if (_showBrushOptions)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                color: Colors.grey,
+                child: SizedBox(
+                  height: 80,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      for (BrushColor brush in brushOption.colors)
+                        ColorButton(
+                          color: brush.color,
+                          onTap: (selectedColor) {
+                            brushColor = selectedColor;
+                            setState(() {});
+                          },
+                          isSelected: brushColor == brush.color,
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -483,17 +450,41 @@ class _FullScreenState extends State<FullScreen> {
       _showfilterlist = !_showfilterlist;
       _cropimage = false;
       _showBrushOptions = false;
+      _focusNode.unfocus();
       _showTextField = false;
     });
   }
 
-  void _cropOptions() {
+  void _cropOptions() async {
     setState(() {
       _showfilterlist = false;
       _cropimage = !_cropimage;
       _showBrushOptions = false;
       _showTextField = false;
-    });
+      _focusNode.requestFocus();
+    }); if (_cropimage && imageBytes != null) {
+      CroppedFile? croppedImage = await ImageCropper().cropImage(
+        sourcePath: widget.image.path,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Image',
+            toolbarColor: Colors.deepPurpleAccent,
+            toolbarWidgetColor: const Color.fromRGBO(188,4,248,0),
+            lockAspectRatio: false,
+          ),
+        ],
+      );
+
+      if (croppedImage != null) {
+        final croppedBytes = await croppedImage.readAsBytes();
+        setState(() {
+          imageBytes = croppedBytes;
+          image = Image.memory(imageBytes!);
+          _cropimage = false;
+        });
+      }
+    }
+
   }
 
   void _rotateLeftOption() {
@@ -502,6 +493,7 @@ class _FullScreenState extends State<FullScreen> {
       _cropimage = false;
       _showBrushOptions = false;
       rotationAngle += math.pi / 4;
+      _focusNode.unfocus();
     });
   }
 
@@ -511,6 +503,7 @@ class _FullScreenState extends State<FullScreen> {
       _cropimage = false;
       _showBrushOptions = false;
       rotationAngle -= math.pi / 4;
+      _focusNode.unfocus();
     });
   }
 
@@ -521,9 +514,10 @@ class _FullScreenState extends State<FullScreen> {
       _cropimage = false;
       _showBrushOptions = false;
     });
-    if (!_showTextField) {
+    if (_showTextField) {
       setState(() {
         userEnteredText = _textEditingController.text;
+        _focusNode.requestFocus();
       });
     }
   }
@@ -535,7 +529,9 @@ class _FullScreenState extends State<FullScreen> {
         _showfilterlist = false;
         _cropimage = false;
         _showTextField = false;
+        _focusNode.unfocus();
       }
     });
   }
 }
+

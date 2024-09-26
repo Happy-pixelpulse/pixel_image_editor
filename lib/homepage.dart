@@ -15,19 +15,22 @@ class Homepage extends StatefulWidget {
 }
 
 class _HomepageState extends State<Homepage> {
-  File? imageFile;
+   File? image;
 
-
+  // @override
+  // void initState() {
+  //   image;
+  //   super.initState();
+  // }
 
   bool isSwitched = false;
-
 
   Future<void> pickImagefromGallery() async {
     try {
       final pickedImage =
           await ImagePicker().pickImage(source: ImageSource.gallery);
       if (pickedImage != null) {
-        imageFile = File(pickedImage.path);
+        image = File(pickedImage.path);
         setState(() {});
       } else {
         print('User didn\'t pick any image.');
@@ -43,7 +46,7 @@ class _HomepageState extends State<Homepage> {
           await ImagePicker().pickImage(source: ImageSource.camera);
       if (pickedImage != null) {
         setState(() {
-          imageFile = File(pickedImage.path);
+          image = File(pickedImage.path);
         });
       } else {
         print('User didn\'t pick any image.');
@@ -59,22 +62,21 @@ class _HomepageState extends State<Homepage> {
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text("Image Edit"),
-        // actions: [
-        //   Padding(
-        //     padding: const EdgeInsets.all(8.0),
-        //     child:
-        //     Switch(
-        //       value: isSwitched,
-        //       onChanged: (value) {
-        //         Provider.of<ThemeProvider>(context, listen: false)
-        //             .toggleTheme();
-        //         setState(() {
-        //           isSwitched = value;
-        //         });
-        //       },
-        //     ),
-        //   ),
-        // ],
+        actions: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Switch(
+              value: isSwitched,
+              onChanged: (value) {
+                Provider.of<ThemeProvider>(context, listen: false)
+                    .toggleTheme();
+                setState(() {
+                  isSwitched = value;
+                });
+              },
+            ),
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.only(top: 50, left: 10, right: 10),
@@ -90,21 +92,11 @@ class _HomepageState extends State<Homepage> {
                 _showDialog(context);
               },
               child: const Text(
-                'Add image',
+                'Add Image',
                 style: TextStyle(
                   color: Colors.black,
                 ),
               ),
-            ),
-            Switch(
-              value: isSwitched,
-              onChanged: (value) {
-                Provider.of<ThemeProvider>(context, listen: false)
-                    .toggleTheme();
-                setState(() {
-                  isSwitched = value;
-                });
-              },
             ),
           ],
         ),
@@ -153,17 +145,19 @@ class _HomepageState extends State<Homepage> {
                 children: [
                   GestureDetector(
                     onTap: () {
-                      if (imageFile != null) {
-                        Navigator.pop(context);
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => FullScreen(
-                                image: imageFile!,
-                              ),
-                            )
-                        );
-                      }
+                      Navigator.pop(context);
+                       if (image != null) {
+
+                         Navigator.push(
+                           context,
+                           MaterialPageRoute(
+                             builder: (context) =>
+                                 FullScreen(
+                                   image: image!,
+                                 ),
+                           ),
+                         );
+                       }
                     },
                     child: const Text(
                       'Add',

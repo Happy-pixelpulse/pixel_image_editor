@@ -22,8 +22,8 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       theme: Provider.of<ThemeProvider>(context).getThemeData,
       home:
-      Homepage(),
-       //Introscreen(),
+      //Homepage(),
+        const Introscreen(),
     );
   }
 }

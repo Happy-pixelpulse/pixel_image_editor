@@ -10,9 +10,10 @@ class Introscreen extends StatefulWidget {
 }
 
 class IntroscreenState extends State<Introscreen> {
+  @override
   void initState() {
     super.initState();
-    _navigatetohome();
+     _navigatetohome();
   }
 
   _navigatetohome() async {
@@ -21,9 +22,21 @@ class IntroscreenState extends State<Introscreen> {
   }
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      child: const FlutterLogo(),
+    return Scaffold(
+      body: Center(
+        child: SizedBox(
+          width: double.infinity,
+          height:double.infinity,
+          child: Image.asset(
+            'assets/logo 2.png',
+            fit: BoxFit.cover,
+          ),
+        ),
+      ),
+      bottomNavigationBar: const Text(
+        'Powered By Pixel Pulse Consultancy',
+        textAlign: TextAlign.center,
+      ),
     );
   }
 }
